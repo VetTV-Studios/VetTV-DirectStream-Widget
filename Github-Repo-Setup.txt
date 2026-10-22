@@ -1,0 +1,40 @@
+GITHUB REPOSITORY SETUP - XboxGameBarDirectStreamWidget / VetTV-DirectStream-Widget
+
+OWNER: VetTV-Studios
+REPO NAME: VetTV-DirectStream-Widget
+
+SHORT DESCRIPTION (for GitHub field - 198 chars):
+Xbox Game Bar widget for direct RTMP streaming (Win+G). Twitch, YouTube, Facebook, Kick, Rumble + VetTV ingest. RTX NVENC, 720p/1080p/1440p 30/60fps, game/mic mixer + live chat overlay.
+
+LONG DESCRIPTION (for README top / About):
+VetTV DirectStream Widget - Xbox Game Bar widget (Win+G) for direct RTMP streaming without OBS.
+Built for VetTV Studios creators with custom VetTV ingest as default (rtmp://ingest.vettv.com/live), plus presets for Twitch, YouTube, Facebook, Kick, Rumble, and custom RTMP.
+
+Features:
+- One-click Go Live from Game Bar overlay
+- RTX NVENC hardware encoding
+- 6 resolutions: 720p/1080p/1440p at 30/60fps
+- Game audio + Mic mixer
+- Live chat overlay widget
+- Settings widget
+- Branded VH neon icons matching https://vettv-studios.github.io/vettv-handheld-news/
+
+WEBSITE: https://vettv-studios.github.io/vettv-handheld-news/
+
+TOPICS (copy into GitHub Settings > Topics):
+xbox-game-bar
+xbox-game-bar-widget
+direct-rtmp
+rtmp-streaming
+twitch
+youtube-live
+vettv
+vettv-studios
+game-bar-widget
+rtx-nvenc
+nvenc
+streaming-widget
+winui
+uwp
+
+LICENSE: MIT
