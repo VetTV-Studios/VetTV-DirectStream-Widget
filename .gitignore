@@ -4,6 +4,7 @@ obj/
 *.user
 *.suo
 packages/
+AppPackages/
 ffmpeg.exe
 *.log
 local.settings.json
