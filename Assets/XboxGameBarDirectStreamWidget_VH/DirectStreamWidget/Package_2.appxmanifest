@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+         xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+         xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+         xmlns:gameBar="http://schemas.microsoft.com/appx/manifest/gamebarwidget/2.0"
+         IgnorableNamespaces="uap mp uap3 gameBar">
+  <Identity Name="VetTVStudios.DirectStreamWidget" Publisher="CN=VetTV" Version="1.0.0.0" />
+  <Mp:PhoneIdentity PhoneProductId="a1b2c3d4-e5f6-7890-abcd-ef1234567890" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <Properties>
+    <DisplayName>Direct Stream</DisplayName>
+    <PublisherDisplayName>VetTV Studios</PublisherDisplayName>
+    <Logo>Assets\StoreLogo.png</Logo>
+  </Properties>
+  <Dependencies>
+    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.18362.0" MaxVersionTested="10.0.22621.0" />
+  </Dependencies>
+  <Resources>
+    <Resource Language="x-all" />
+  </Resources>
+  <Applications>
+    <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="DirectStreamWidget.App">
+      <uap:VisualElements DisplayName="Direct Stream" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\SmallLogo.png" Description="Direct RTMP streaming from Game Bar" BackgroundColor="transparent">
+        <uap:DefaultTile Wide310x150Logo="Assets\WideTile.png" />
+        <uap:SplashScreen BackgroundColor="#1a1a1a" />
+      </uap:VisualElements>
+      <Extensions>
+        <uap:Extension Category="windows.appService">
+          <uap:AppService Name="DirectStreamService" />
+        </uap:Extension>
+        <uap3:Extension Category="windows.appExtension">
+          <uap3:AppExtension Name="microsoft.gameBarUIExtension" Id="com.vettv.directstream" DisplayName="Direct Stream" Description="Direct RTMP streaming widget">
+            <uap3:Properties>
+              <GameBarWidget:GameBarWidget xmlns:GameBarWidget="http://schemas.microsoft.com/appx/manifest/gamebarwidget/2.0" Homed="true" Pinned="false" SupportsAlpha="true" NavigationTargetId="DirectStreamMain" Title="DIRECT STREAM" Icon="Assets\widget_icon.png" Favicon="Assets\widget_icon.png">
+                <GameBarWidget:GameBarWidgetDefinition Id="DirectStreamMain" DisplayName="Direct Stream" Description="Start/stop RTMP stream directly from overlay">
+                  <GameBarWidget:GameBarWidgetSettings SupportsSettings="true" SettingsId="DirectStreamSettings" Title="Stream Settings" />
+                </GameBarWidget:GameBarWidgetDefinition>
+                <GameBarWidget:GameBarWidgetDefinition Id="DirectStreamChat" DisplayName="Stream Chat" Description="Live chat overlay for Twitch/YouTube/Kick/Rumble"/>
+                <GameBarWidget:GameBarWidgetDefinition Id="DirectStreamSettings" DisplayName="Direct Stream Settings" Description="Configure streaming defaults" />
+              </GameBarWidget:GameBarWidget>
+            </uap3:Properties>
+          </uap3:AppExtension>
+        </uap3:Extension>
+      </Extensions>
+    </Application>
+  </Applications>
+  <Capabilities>
+    <Capability Name="internetClient" />
+    <uap:Capability Name="microphone" />
+    <uap3:Capability Name="appDiagnostics" />
+  </Capabilities>
+</Package>

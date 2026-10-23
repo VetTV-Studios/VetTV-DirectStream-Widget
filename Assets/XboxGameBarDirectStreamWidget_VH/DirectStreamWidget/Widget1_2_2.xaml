@@ -1,0 +1,127 @@
+<Page x:Class="DirectStreamWidget.Widget1"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      Background="#CC1E1E1E" RequestedTheme="Dark">
+    <Grid Padding="10" RowSpacing="8">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header + Live Light -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Ellipse Width="10" Height="10" x:Name="StatusLight" Fill="Gray"/>
+                <TextBlock Text="DIRECT STREAM" FontWeight="Bold" FontSize="13" Foreground="White"/>
+                <TextBlock x:Name="StatusText" Text="Idle" Foreground="#AAAAAA" FontSize="12" Margin="6,0,0,0"/>
+            </StackPanel>
+            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                <Button x:Name="ChatButton" Content="💬 CHAT" Click="OnChatClick" FontSize="10" Padding="6,2" Background="#333333"/>
+                <Button Content="⚙" Click="OnSettingsClick" Background="Transparent" Foreground="#AAAAAA" Width="28" Height="28"/>
+            </StackPanel>
+        </Grid>
+
+        <!-- Platform Presets -->
+        <Grid Grid.Row="1" ColumnSpacing="8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <ComboBox x:Name="PlatformBox" Header="Platform" SelectionChanged="OnPlatformChanged" HorizontalAlignment="Stretch">
+                <ComboBoxItem Content="📺 Twitch" Tag="Twitch" IsSelected="True"/>
+                <ComboBoxItem Content="▶️ YouTube" Tag="YouTube"/>
+                <ComboBoxItem Content="👍 Facebook" Tag="Facebook"/>
+                <ComboBoxItem Content="🟢 Kick" Tag="Kick"/>
+                <ComboBoxItem Content="🔶 Rumble" Tag="Rumble"/>
+                <ComboBoxItem Content="⚙️ Custom RTMP" Tag="Custom"/>
+            </ComboBox>
+            <TextBox Grid.Column="1" x:Name="ChannelBox" Header="Channel / Video ID (for chat)" PlaceholderText="vet-tv or channel name" FontSize="11"/>
+        </Grid>
+
+        <StackPanel Grid.Row="2" Spacing="5">
+            <TextBox x:Name="RtmpUrlBox" Text="rtmp://live.twitch.tv/app" Header="RTMP URL" FontSize="11" />
+            <Grid ColumnSpacing="8">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                <PasswordBox x:Name="StreamKeyBox" PlaceholderText="Stream Key (saved locally)" Header="Stream Key" FontSize="11"/>
+                <Button Grid.Column="1" Content="👁" Click="OnToggleKey" Margin="0,18,0,0" Width="36" Background="#333"/>
+            </Grid>
+            <TextBlock x:Name="PlatformHelp" Text="Use your Twitch stream key from dashboard.twitch.tv" Foreground="#888888" FontSize="10" TextWrapping="Wrap"/>
+        </StackPanel>
+
+        <!-- Quality & Encoder -->
+        <Grid Grid.Row="3" ColumnSpacing="8" RowSpacing="6">
+            <Grid.RowDefinitions><RowDefinition/><RowDefinition/></Grid.RowDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+            <ComboBox x:Name="QualityBox" Header="Resolution / FPS" SelectedIndex="3" HorizontalAlignment="Stretch">
+                <ComboBoxItem Content="720p30 - 3.5 Mbps"/>
+                <ComboBoxItem Content="720p60 - 4.5 Mbps"/>
+                <ComboBoxItem Content="1080p30 - 4.5 Mbps"/>
+                <ComboBoxItem Content="1080p60 - 6 Mbps (Recommended)"/>
+                <ComboBoxItem Content="1440p30 - 8 Mbps"/>
+                <ComboBoxItem Content="1440p60 - 12 Mbps (RTX)"/>
+            </ComboBox>
+            <ComboBox x:Name="EncoderBox" Grid.Column="1" Header="Encoder (RTX)" SelectedIndex="0">
+                <ComboBoxItem Content="NVENC RTX Auto (Recommended)"/>
+                <ComboBoxItem Content="NVENC H.264 RTX"/>
+                <ComboBoxItem Content="NVENC HEVC RTX (Efficient)"/>
+                <ComboBoxItem Content="Intel QSV"/>
+                <ComboBoxItem Content="AMD AMF"/>
+                <ComboBoxItem Content="x264 CPU Fallback"/>
+            </ComboBox>
+            <CheckBox Grid.Row="1" x:Name="RtxFeaturesCheck" Content="RTX: Lookahead + Psycho Tuning" IsChecked="True" FontSize="11" Margin="0,6,0,0"/>
+            <CheckBox Grid.Row="1" Grid.Column="1" x:Name="AutoReconnectCheck" Content="Auto-reconnect" IsChecked="True" FontSize="11" Margin="0,6,0,0"/>
+        </Grid>
+
+        <!-- Audio Mixer -->
+        <Border Grid.Row="4" Background="#22FFFFFF" CornerRadius="6" Padding="8">
+            <StackPanel Spacing="6">
+                <TextBlock Text="AUDIO MIXER" FontSize="11" FontWeight="Bold" Foreground="#AAAAAA"/>
+                <Grid ColumnSpacing="12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <TextBlock Text="🎮 Game Audio" FontSize="11"/>
+                        <Slider x:Name="GameVolSlider" Minimum="0" Maximum="100" Value="80" ValueChanged="OnGameVolChanged"/>
+                        <TextBlock x:Name="GameVolText" Text="80%" FontSize="10" Foreground="#888"/>
+                        <CheckBox x:Name="DesktopAudioCheck" Content="Include" IsChecked="True" FontSize="11"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1">
+                        <TextBlock Text="🎙️ Mic" FontSize="11"/>
+                        <Slider x:Name="MicVolSlider" Minimum="0" Maximum="100" Value="85" ValueChanged="OnMicVolChanged"/>
+                        <TextBlock x:Name="MicVolText" Text="85%" FontSize="10" Foreground="#888"/>
+                        <CheckBox x:Name="MicAudioCheck" Content="Include" IsChecked="True" FontSize="11"/>
+                    </StackPanel>
+                </Grid>
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <CheckBox x:Name="MuteMicCheck" Content="Mute Mic (Push-to-mute in overlay)" FontSize="11"/>
+                    <TextBlock x:Name="AudioLevelText" Text="🔊 Levels: Game ████░░ Mic ███░░" FontSize="10" Foreground="#666"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+
+        <!-- Stream Button -->
+        <Button Grid.Row="5" x:Name="StreamButton" Click="OnStreamButtonClick" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch" Height="44" CornerRadius="6">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <SymbolIcon Symbol="Video" />
+                <TextBlock x:Name="StreamButtonText" Text="START STREAMING" FontWeight="SemiBold"/>
+            </StackPanel>
+        </Button>
+
+        <!-- Log -->
+        <Border Grid.Row="7" Background="#22000000" CornerRadius="4" Padding="8" Margin="0,2,0,0">
+            <ScrollViewer MaxHeight="120">
+                <TextBlock x:Name="LogBox" Text="Select platform -> Enter key -> START. NVENC RTX will auto-detect your GPU." FontFamily="Consolas" FontSize="10" Foreground="#CCCCCC" TextWrapping="Wrap"/>
+            </ScrollViewer>
+        </Border>
+
+        <Grid Grid.Row="8">
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+            <TextBlock x:Name="StatsText" Text="0:00:00 | 0 kbps | NVENC Ready" Foreground="#888888" FontSize="10" VerticalAlignment="Center"/>
+            <TextBlock Grid.Column="1" x:Name="EncoderStatus" Text="RTX: Detected" Foreground="#00FF88" FontSize="10"/>
+        </Grid>
+    </Grid>
+</Page>
