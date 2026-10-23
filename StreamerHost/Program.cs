@@ -1,105 +1,247 @@
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
+using System.Text;
+using System.Text.RegularExpressions;
+using System.Threading;
+using System.Threading.Tasks;
+using StreamerHost;
 using Windows.ApplicationModel.AppService;
 using Windows.Foundation.Collections;
 
-Console.WriteLine("VetTV DirectStream Host - FullTrust process");
+// StreamerHost - full-trust companion process for the Direct Stream widget.
+//
+// Launched by the widget via FullTrustProcessLauncher (see the
+// windows.fullTrustProcess extension in Package.appxmanifest). It connects to
+// the "DirectStreamService" app service hosted by the widget process, registers
+// itself with Role=Host, and then waits for Start/Stop commands relayed from
+// the widget UI. All ffmpeg work happens here, never in the widget process.
+//
+// Changes from the scaffold:
+//  - Uses the single shared FfmpegArgs builder (resolution/1440p applied,
+//    per-encoder presets, valid multi-device dshow audio, PATH search).
+//  - No hardcoded "Microphone (Realtek(R) Audio)": audio devices are
+//    enumerated from ffmpeg itself.
+//  - "Auto" encoder resolves against the encoders the installed ffmpeg
+//    actually has, instead of always assuming NVENC.
+//  - Start failures are reported back with the real error instead of the
+//    widget pretending the stream is live.
 
-AppServiceConnection connection = null;
-Process ffmpeg = null;
-
-async Task ConnectAsync()
+var serviceConnection = new AppServiceConnection
 {
-    var appService = new AppServiceConnection
+    AppServiceName = "DirectStreamService",
+    PackageFamilyName = Windows.ApplicationModel.Package.Current.Id.FamilyName
+};
+
+var appServiceExit = new ManualResetEventSlim(false);
+Process ffmpegProcess = null;
+AppServiceConnection connection = serviceConnection;
+
+async Task SendToWidget(ValueSet message)
+{
+    try { await connection.SendMessageAsync(message); }
+    catch { /* widget closed; nothing to notify */ }
+}
+
+async Task LogAsync(string text) =>
+    await SendToWidget(new ValueSet { ["Log"] = text });
+
+List<string> ListEncoders(string ffmpeg)
+{
+    var output = RunAndCapture(ffmpeg, "-hide_banner -encoders");
+    return new[] { "h264_nvenc", "h264_qsv", "h264_amf", "libx264" }
+        .Where(e => output.Contains(e))
+        .ToList();
+}
+
+List<string> ListAudioDevices(string ffmpeg)
+{
+    // ffmpeg prints the DirectShow device list to stderr and exits non-zero;
+    // RunAndCapture merges stdout+stderr for exactly this case.
+    var output = RunAndCapture(ffmpeg, "-hide_banner -list_devices true -f dshow -i dummy");
+    var devices = new List<string>();
+    bool inAudioSection = false;
+    foreach (string line in output.Split('\n'))
     {
-        AppServiceName = "DirectStreamService",
-        PackageFamilyName = Windows.ApplicationModel.Package.Current.Id.FamilyName
-    };
-    
-    appService.RequestReceived += async (s, args) =>
-    {
-        var msg = args.GetDeferral();
-        try
+        if (line.Contains("DirectShow audio devices")) inAudioSection = true;
+        else if (line.Contains("DirectShow video devices")) inAudioSection = false;
+        if (!inAudioSection) continue;
+        var match = Regex.Match(line, "\"(?<name>[^\"]+)\"");
+        if (match.Success && !line.Contains("Alternative name"))
         {
-            var cmd = args.Request.Message["Command"] as string;
-            if(cmd == "Start")
-            {
-                string rtmp = args.Request.Message["RtmpUrl"] as string;
-                string key = args.Request.Message["StreamKey"] as string;
-                int quality = (int)args.Request.Message["Quality"];
-                int encoder = (int)args.Request.Message["Encoder"];
-                bool desktop = (bool)args.Request.Message["DesktopAudio"];
-                bool mic = (bool)args.Request.Message["MicAudio"];
-
-                string ffmpegArgs = BuildArgs(rtmp, key, quality, encoder, desktop, mic);
-                
-                // Locate ffmpeg
-                string ffmpegPath = FindFfmpeg();
-                if(ffmpegPath == null)
-                {
-                    await args.Request.SendResponseAsync(new ValueSet{ ["Error"] = "ffmpeg.exe not found. Place it next to this exe or in PATH" });
-                    return;
-                }
-
-                ffmpeg = new Process
-                {
-                    StartInfo = new ProcessStartInfo
-                    {
-                        FileName = ffmpegPath,
-                        Arguments = ffmpegArgs,
-                        UseShellExecute = false,
-                        RedirectStandardError = true,
-                        RedirectStandardOutput = true,
-                        CreateNoWindow = true
-                    }
-                };
-
-                ffmpeg.ErrorDataReceived += async (sender, e) =>
-                {
-                    if(e.Data != null) await s.SendMessageAsync(new ValueSet{ ["Log"] = e.Data });
-                };
-
-                ffmpeg.Start();
-                ffmpeg.BeginErrorReadLine();
-
-                await args.Request.SendResponseAsync(new ValueSet{ ["Status"] = "Started" });
-            }
-            else if(cmd == "Stop")
-            {
-                try { ffmpeg?.Kill(true); } catch {}
-                ffmpeg = null;
-                await args.Request.SendResponseAsync(new ValueSet{ ["Status"] = "Stopped" });
-            }
+            devices.Add(match.Groups["name"].Value);
         }
-        finally { msg.Complete(); }
-    };
-
-    await appService.OpenAsync();
-    Console.WriteLine("Connected to AppService");
+    }
+    return devices;
 }
 
-string FindFfmpeg()
+string RunAndCapture(string exe, string arguments)
 {
-    string[] candidates = { "ffmpeg.exe", Path.Combine(AppContext.BaseDirectory, "ffmpeg.exe"), "C:\ffmpeg\bin\ffmpeg.exe" };
-    foreach(var c in candidates) if(File.Exists(c)) return c;
-    return null;
+    try
+    {
+        var psi = new ProcessStartInfo(exe, arguments)
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        using var proc = Process.Start(psi);
+        var sb = new StringBuilder();
+        proc.OutputDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
+        proc.ErrorDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
+        proc.BeginOutputReadLine();
+        proc.BeginErrorReadLine();
+        proc.WaitForExit(15000);
+        return sb.ToString();
+    }
+    catch
+    {
+        return string.Empty;
+    }
 }
 
-string BuildArgs(string rtmpUrl, string streamKey, int qualityIndex, int encoderIndex, bool desktopAudio, bool micAudio)
+async Task<ValueSet> HandleStart(ValueSet message)
 {
-    // Same logic as UWP service but with fallback encoder detection
-    string fullUrl = rtmpUrl.TrimEnd('/') + "/" + streamKey;
-    string fps = qualityIndex == 2 ? "30" : "60";
-    string bitrate = qualityIndex switch { 0 => "4500k", 1 => "6000k", 2 => "4500k", _ => "8000k" };
-    string encoder = encoderIndex switch { 1 => "h264_nvenc", 2 => "h264_qsv", 3 => "libx264", _ => "h264_nvenc" };
-    
-    // Prefer ddagrab on Windows 11 for lower overhead
-    string video = $"-f gdigrab -framerate {fps} -offset_x 0 -offset_y 0 -video_size 1920x1080 -i desktop";
-    string audio = "";
-    if(desktopAudio) audio += " -f dshow -i audio="virtual-audio-capturer"";
-    if(micAudio) audio += " -f dshow -i audio="Microphone (Realtek(R) Audio)"";
-    
-    return $"-y {video} {audio} -c:v {encoder} -preset fast -b:v {bitrate} -maxrate {bitrate} -bufsize {bitrate} -pix_fmt yuv420p -g {int.Parse(fps)*2} -c:a aac -b:a 160k -ar 48000 -f flv "{fullUrl}"";
+    string ffmpeg = FfmpegArgs.FindFfmpeg();
+    if (ffmpeg == null)
+    {
+        return new ValueSet
+        {
+            ["Status"] = "Error",
+            ["Error"] = "ffmpeg.exe not found. Put ffmpeg.exe next to StreamerHost.exe or add ffmpeg to PATH (see Settings)."
+        };
+    }
+
+    string GetString(string key) =>
+        message.TryGetValue(key, out object v) ? v as string ?? string.Empty : string.Empty;
+    bool GetBool(string key) =>
+        message.TryGetValue(key, out object v) && v is bool b && b;
+
+    var quality = QualityPresets.Resolve(GetString("Quality"));
+    var encoders = ListEncoders(ffmpeg);
+    string encoder = FfmpegArgs.ResolveEncoder(GetString("Encoder"), encoders);
+
+    var audioDevices = new List<string>();
+    var availableAudio = ListAudioDevices(ffmpeg);
+    if (GetBool("DesktopAudio") && availableAudio.Contains(FfmpegArgs.DesktopAudioDevice))
+    {
+        audioDevices.Add(FfmpegArgs.DesktopAudioDevice);
+    }
+    if (GetBool("MicAudio"))
+    {
+        // First real audio device that is not the desktop capturer. The
+        // scaffold hardcoded one machine's Realtek mic name; never again.
+        string mic = availableAudio.FirstOrDefault(d => d != FfmpegArgs.DesktopAudioDevice);
+        if (mic != null)
+        {
+            audioDevices.Add(mic);
+        }
+        else
+        {
+            await LogAsync("Mic requested but no microphone device was found by ffmpeg; streaming without mic.");
+        }
+    }
+
+    string url = GetString("RtmpUrl").Trim();
+    string key = GetString("StreamKey").Trim();
+    string target = string.IsNullOrEmpty(key) ? url : url.TrimEnd('/') + "/" + key;
+
+    var args = FfmpegArgs.Build(quality, encoder, audioDevices, target);
+    await LogAsync("Starting ffmpeg (" + encoder + ", " + quality.Label + ") -> " + url);
+
+    try
+    {
+        ffmpegProcess?.Kill();
+        ffmpegProcess?.Dispose();
+        var psi = new ProcessStartInfo(ffmpeg, string.Join(" ", args.Select(QuoteArg)))
+        {
+            RedirectStandardError = true,
+            RedirectStandardOutput = true,
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
+        ffmpegProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        ffmpegProcess.ErrorDataReceived += async (_, e) =>
+        {
+            if (!string.IsNullOrWhiteSpace(e.Data))
+            {
+                await LogAsync(e.Data);
+            }
+        };
+        ffmpegProcess.Exited += async (_, _) =>
+        {
+            await SendToWidget(new ValueSet { ["Status"] = "Idle" });
+        };
+        ffmpegProcess.Start();
+        ffmpegProcess.BeginErrorReadLine();
+        return new ValueSet { ["Status"] = "Started" };
+    }
+    catch (Exception ex)
+    {
+        return new ValueSet { ["Status"] = "Error", ["Error"] = ex.Message };
+    }
 }
 
-await ConnectAsync();
-Console.ReadLine();
+string QuoteArg(string arg)
+{
+    if (arg.IndexOfAny(new[] { ' ', '"', '[', ']', ':' }) >= 0 && !arg.StartsWith("audio="))
+    {
+        return "\"" + arg.Replace("\"", "\\\"") + "\"";
+    }
+    if (arg.StartsWith("audio="))
+    {
+        return "\"" + arg.Replace("\"", "\\\"") + "\"";
+    }
+    return arg;
+}
+
+serviceConnection.RequestReceived += async (sender, args) =>
+{
+    var deferral = args.GetDeferral();
+    try
+    {
+        string command = args.Request.Message.TryGetValue("Command", out object c) ? c as string : null;
+        if (command == "Start")
+        {
+            var result = await HandleStart(args.Request.Message);
+            await args.Request.SendResponseAsync(result);
+        }
+        else if (command == "Stop")
+        {
+            try { ffmpegProcess?.Kill(); } catch { }
+            ffmpegProcess?.Dispose();
+            ffmpegProcess = null;
+            await args.Request.SendResponseAsync(new ValueSet { ["Status"] = "Stopped" });
+            await SendToWidget(new ValueSet { ["Status"] = "Idle" });
+        }
+        else if (command == "Ping")
+        {
+            await args.Request.SendResponseAsync(new ValueSet { ["Status"] = "OK" });
+        }
+    }
+    finally
+    {
+        deferral.Complete();
+    }
+};
+
+serviceConnection.ServiceClosed += (_, _) => appServiceExit.Set();
+
+var openStatus = await serviceConnection.OpenAsync();
+if (openStatus != AppServiceConnectionStatus.Success)
+{
+    // Nowhere to report to: the widget surfaces its own connection error.
+    return;
+}
+
+// Announce this process as the host side of the relay.
+await serviceConnection.SendMessageAsync(new ValueSet
+{
+    ["Command"] = "Register",
+    ["Role"] = "Host"
+});
+
+appServiceExit.Wait();
+try { ffmpegProcess?.Kill(); } catch { }
