@@ -95,12 +95,16 @@
       <DependentUpon>App.xaml</DependentUpon>
     </Compile>
     <Compile Include="PlatformPresets.cs" />
+    <Compile Include="ChatOverlayUriBuilder.cs" />
     <Compile Include="StreamingService.cs" />
     <Compile Include="Widget1.xaml.cs">
       <DependentUpon>Widget1.xaml</DependentUpon>
     </Compile>
     <Compile Include="SettingsWidget.xaml.cs">
       <DependentUpon>SettingsWidget.xaml</DependentUpon>
+    </Compile>
+    <Compile Include="ChatOverlayWidget.xaml.cs">
+      <DependentUpon>ChatOverlayWidget.xaml</DependentUpon>
     </Compile>
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
@@ -128,6 +132,10 @@
       <SubType>Designer</SubType>
     </Page>
     <Page Include="Widget1.xaml">
+      <Generator>MSBuild:Compile</Generator>
+      <SubType>Designer</SubType>
+    </Page>
+    <Page Include="ChatOverlayWidget.xaml">
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </Page>
