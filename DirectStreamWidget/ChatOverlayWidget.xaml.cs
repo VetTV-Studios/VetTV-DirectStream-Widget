@@ -153,7 +153,8 @@ namespace DirectStreamWidget
                 {
                     PlatformPreset preset = PlatformPresets.All.FirstOrDefault(
                         item => item.Name.Equals(platform, StringComparison.OrdinalIgnoreCase));
-                    if (preset != null && PlatformBox.SelectedItem != preset)
+                    if (preset != null && PlatformBox.SelectedItem != preset &&
+                        string.Equals(platform, ChatOverlayState.SelectedPlatform, StringComparison.Ordinal))
                     {
                         PlatformBox.SelectedItem = preset;
                     }
