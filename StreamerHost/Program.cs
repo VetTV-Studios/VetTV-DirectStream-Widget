@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
@@ -36,16 +36,106 @@ var serviceConnection = new AppServiceConnection
 
 var appServiceExit = new ManualResetEventSlim(false);
 Process ffmpegProcess = null;
+ChildProcessJob ffmpegJob = null;
+TaskCompletionSource<bool> ffmpegExited = null;
 AppServiceConnection connection = serviceConnection;
+string logPath = null;
+
+async Task StopFfmpegAsync()
+{
+    Process process = ffmpegProcess;
+    ChildProcessJob job = ffmpegJob;
+    TaskCompletionSource<bool> exitSignal = ffmpegExited;
+    ffmpegProcess = null;
+    ffmpegJob = null;
+    ffmpegExited = null;
+
+    if (process == null)
+    {
+        job?.Dispose();
+        return;
+    }
+
+    try
+    {
+        if (!process.HasExited)
+        {
+            process.Kill(true);
+            if (!process.WaitForExit(5000))
+            {
+                throw new TimeoutException("FFmpeg did not exit after the stop request.");
+            }
+        }
+        if (exitSignal != null &&
+            await Task.WhenAny(exitSignal.Task, Task.Delay(TimeSpan.FromSeconds(5))) != exitSignal.Task)
+        {
+            throw new TimeoutException("FFmpeg exited, but its shutdown was not confirmed.");
+        }
+    }
+    finally
+    {
+        job?.Dispose();
+        process.Dispose();
+    }
+}
+
+void WriteLocalLog(string text)
+{
+    string line = DateTimeOffset.Now.ToString("yyyy-MM-dd HH:mm:ss.fff") + " " + text;
+    Debug.WriteLine(line);
+    try
+    {
+        if (logPath == null)
+        {
+            logPath = Path.Combine(
+                Windows.Storage.ApplicationData.Current.LocalFolder.Path,
+                "StreamerHost.log");
+        }
+        File.AppendAllText(logPath, line + Environment.NewLine);
+    }
+    catch (Exception ex)
+    {
+        Debug.WriteLine("Writing StreamerHost.log failed: " + ex.Message);
+    }
+}
 
 async Task SendToWidget(ValueSet message)
 {
-    try { await connection.SendMessageAsync(message); }
-    catch { /* widget closed; nothing to notify */ }
+    try
+    {
+        await connection.SendMessageAsync(message);
+    }
+    catch (Exception ex)
+    {
+        WriteLocalLog("Sending a host notification failed: " + ex.Message);
+    }
 }
 
-async Task LogAsync(string text) =>
+async Task LogAsync(string text)
+{
+    WriteLocalLog(text);
     await SendToWidget(new ValueSet { ["Log"] = text });
+}
+
+bool IsUsefulDiagnostic(string text)
+{
+    if (text.Contains("passing through packet", StringComparison.OrdinalIgnoreCase) ||
+        Regex.IsMatch(text, @"\bframe=\s*\d+", RegexOptions.IgnoreCase))
+    {
+        return false;
+    }
+
+    return Regex.IsMatch(
+        text,
+        @"\b(error|failed|warning|denied|refused|rejected|invalid|timeout|handshake|publish|rtmp)\b",
+        RegexOptions.IgnoreCase) ||
+        text.Contains("Starting connection attempt", StringComparison.OrdinalIgnoreCase) ||
+        text.Contains("Successfully connected", StringComparison.OrdinalIgnoreCase) ||
+        text.StartsWith("Input #", StringComparison.OrdinalIgnoreCase) ||
+        text.StartsWith("Output #", StringComparison.OrdinalIgnoreCase) ||
+        text.StartsWith("Stream mapping:", StringComparison.OrdinalIgnoreCase) ||
+        Regex.IsMatch(text, @"^\s*Stream #\d+:\d+: (Video|Audio):", RegexOptions.IgnoreCase);
+}
 
 List<string> ListEncoders(string ffmpeg)
 {
@@ -55,20 +145,27 @@ List<string> ListEncoders(string ffmpeg)
         .ToList();
 }
 
-List<string> ListAudioDevices(string ffmpeg)
+async Task<List<string>> ListAudioDevicesAsync(string ffmpeg)
 {
-    // ffmpeg prints the DirectShow device list to stderr and exits non-zero;
-    // RunAndCapture merges stdout+stderr for exactly this case.
-    var output = RunAndCapture(ffmpeg, "-hide_banner -list_devices true -f dshow -i dummy");
+    string output;
+    try
+    {
+        output = RunAndCapture(ffmpeg, "-hide_banner -list_devices true -f dshow -i dummy");
+    }
+    catch (Exception ex)
+    {
+        await LogAsync("Audio-device discovery failed; continuing without audio: " + ex.Message);
+        return new List<string>();
+    }
+
     var devices = new List<string>();
-    bool inAudioSection = false;
     foreach (string line in output.Split('\n'))
     {
-        if (line.Contains("DirectShow audio devices")) inAudioSection = true;
-        else if (line.Contains("DirectShow video devices")) inAudioSection = false;
-        if (!inAudioSection) continue;
-        var match = Regex.Match(line, "\"(?<name>[^\"]+)\"");
-        if (match.Success && !line.Contains("Alternative name"))
+        var match = Regex.Match(
+            line,
+            "\"(?<name>[^\"]+)\"\\s*\\(audio\\)",
+            RegexOptions.IgnoreCase);
+        if (match.Success)
         {
             devices.Add(match.Groups["name"].Value);
         }
@@ -78,31 +175,56 @@ List<string> ListAudioDevices(string ffmpeg)
 
 string RunAndCapture(string exe, string arguments)
 {
-    try
+    var psi = new ProcessStartInfo(exe, arguments)
     {
-        var psi = new ProcessStartInfo(exe, arguments)
-        {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
-        using var proc = Process.Start(psi);
-        var sb = new StringBuilder();
-        proc.OutputDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
-        proc.ErrorDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
-        proc.BeginOutputReadLine();
-        proc.BeginErrorReadLine();
-        proc.WaitForExit(15000);
-        return sb.ToString();
-    }
-    catch
+        RedirectStandardOutput = true,
+        RedirectStandardError = true,
+        UseShellExecute = false,
+        CreateNoWindow = true
+    };
+    using var proc = Process.Start(psi);
+    if (proc == null)
     {
-        return string.Empty;
+        throw new InvalidOperationException("Could not start ffmpeg to inspect its capabilities.");
     }
+
+    Task<string> stdout = proc.StandardOutput.ReadToEndAsync();
+    Task<string> stderr = proc.StandardError.ReadToEndAsync();
+    if (!proc.WaitForExit(30000))
+    {
+        proc.Kill(true);
+        throw new TimeoutException("Timed out while querying ffmpeg capabilities.");
+    }
+    Task.WaitAll(stdout, stderr);
+    return stdout.Result + Environment.NewLine + stderr.Result;
 }
 
 async Task<ValueSet> HandleStart(ValueSet message)
+{
+    WriteLocalLog("Received Start command.");
+    try
+    {
+        return await HandleStartCore(message);
+    }
+    catch (Exception ex)
+    {
+        string key = message.TryGetValue("StreamKey", out object keyValue) ? keyValue as string ?? string.Empty : string.Empty;
+        string url = message.TryGetValue("RtmpUrl", out object urlValue) ? urlValue as string ?? string.Empty : string.Empty;
+        string error = ex.Message;
+        if (!string.IsNullOrEmpty(key))
+        {
+            error = error.Replace(key, "[redacted]", StringComparison.Ordinal);
+        }
+        if (!string.IsNullOrEmpty(url))
+        {
+            error = error.Replace(url, "[redacted RTMP URL]", StringComparison.OrdinalIgnoreCase);
+        }
+        await LogAsync("Starting the stream failed: " + error);
+        return new ValueSet { ["Status"] = "Error", ["Error"] = error };
+    }
+}
+
+async Task<ValueSet> HandleStartCore(ValueSet message)
 {
     string ffmpeg = FfmpegArgs.FindFfmpeg();
     if (ffmpeg == null)
@@ -124,19 +246,27 @@ async Task<ValueSet> HandleStart(ValueSet message)
     string encoder = FfmpegArgs.ResolveEncoder(GetString("Encoder"), encoders);
 
     var audioDevices = new List<string>();
-    var availableAudio = ListAudioDevices(ffmpeg);
-    if (GetBool("DesktopAudio") && availableAudio.Contains(FfmpegArgs.DesktopAudioDevice))
+    var availableAudio = await ListAudioDevicesAsync(ffmpeg);
+    if (GetBool("DesktopAudio") && availableAudio.Contains(
+            FfmpegArgs.DesktopAudioDevice,
+            StringComparer.OrdinalIgnoreCase))
     {
         audioDevices.Add(FfmpegArgs.DesktopAudioDevice);
     }
+    else if (GetBool("DesktopAudio"))
+    {
+        await LogAsync(
+            "Desktop/game audio is enabled, but FFmpeg cannot see the virtual-audio-capturer device. " +
+            "Streaming without desktop audio; install a compatible virtual audio capture device.");
+    }
     if (GetBool("MicAudio"))
     {
-        // First real audio device that is not the desktop capturer. The
-        // scaffold hardcoded one machine's Realtek mic name; never again.
-        string mic = availableAudio.FirstOrDefault(d => d != FfmpegArgs.DesktopAudioDevice);
+        string mic = availableAudio.FirstOrDefault(d =>
+            !string.Equals(d, FfmpegArgs.DesktopAudioDevice, StringComparison.OrdinalIgnoreCase));
         if (mic != null)
         {
             audioDevices.Add(mic);
+            await LogAsync("Using microphone input: " + mic);
         }
         else
         {
@@ -146,15 +276,17 @@ async Task<ValueSet> HandleStart(ValueSet message)
 
     string url = GetString("RtmpUrl").Trim();
     string key = GetString("StreamKey").Trim();
-    string target = string.IsNullOrEmpty(key) ? url : url.TrimEnd('/') + "/" + key;
+    string target = BuildTargetUrl(url, key);
 
     var args = FfmpegArgs.Build(quality, encoder, audioDevices, target);
-    await LogAsync("Starting ffmpeg (" + encoder + ", " + quality.Label + ") -> " + url);
+    await LogAsync("Starting ffmpeg (" + encoder + ", " + quality.Label + "); waiting for RTMP output to open.");
 
     try
     {
-        ffmpegProcess?.Kill();
-        ffmpegProcess?.Dispose();
+        await StopFfmpegAsync();
+        var outputReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var processExited = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var job = new ChildProcessJob();
         var psi = new ProcessStartInfo(ffmpeg, string.Join(" ", args.Select(QuoteArg)))
         {
             RedirectStandardError = true,
@@ -162,26 +294,128 @@ async Task<ValueSet> HandleStart(ValueSet message)
             UseShellExecute = false,
             CreateNoWindow = true
         };
-        ffmpegProcess = new Process { StartInfo = psi, EnableRaisingEvents = true };
-        ffmpegProcess.ErrorDataReceived += async (_, e) =>
+        var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        process.ErrorDataReceived += async (_, e) =>
         {
             if (!string.IsNullOrWhiteSpace(e.Data))
             {
-                await LogAsync(e.Data);
+                string diagnostic = e.Data.Replace(target, "[redacted RTMP target]", StringComparison.OrdinalIgnoreCase);
+                if (!string.IsNullOrEmpty(key))
+                {
+                    diagnostic = diagnostic.Replace(key, "[redacted]", StringComparison.Ordinal);
+                }
+                if (diagnostic.Contains("Output #0, flv,", StringComparison.OrdinalIgnoreCase))
+                {
+                    outputReady.TrySetResult(true);
+                }
+                if (IsUsefulDiagnostic(diagnostic))
+                {
+                    await LogAsync(diagnostic);
+                }
             }
         };
-        ffmpegProcess.Exited += async (_, _) =>
+        process.Exited += (_, _) =>
         {
-            await SendToWidget(new ValueSet { ["Status"] = "Idle" });
+            try
+            {
+                WriteLocalLog("ffmpeg exited with code " + process.ExitCode + ".");
+            }
+            catch (InvalidOperationException)
+            {
+                WriteLocalLog("ffmpeg exited.");
+            }
+            outputReady.TrySetResult(false);
+            processExited.TrySetResult(true);
+            _ = SendToWidget(new ValueSet { ["Status"] = "Idle" });
         };
-        ffmpegProcess.Start();
-        ffmpegProcess.BeginErrorReadLine();
+        bool processStarted = false;
+        try
+        {
+            processStarted = process.Start();
+            if (!processStarted)
+            {
+                throw new InvalidOperationException("FFmpeg process did not start.");
+            }
+            job.Assign(process);
+            ffmpegProcess = process;
+            ffmpegJob = job;
+            ffmpegExited = processExited;
+            WriteLocalLog("ffmpeg process started with PID " + process.Id + ".");
+            process.BeginErrorReadLine();
+        }
+        catch
+        {
+            if (processStarted)
+            {
+                try
+                {
+                    if (!process.HasExited)
+                    {
+                        process.Kill(true);
+                    }
+                }
+                catch (Exception cleanupException)
+                {
+                    WriteLocalLog("Cleaning up FFmpeg after startup failed: " + cleanupException.Message);
+                }
+            }
+            job.Dispose();
+            process.Dispose();
+            if (ReferenceEquals(ffmpegProcess, process))
+            {
+                ffmpegProcess = null;
+                ffmpegJob = null;
+                ffmpegExited = null;
+            }
+            throw;
+        }
+
+        Task completed = await Task.WhenAny(outputReady.Task, Task.Delay(TimeSpan.FromSeconds(20)));
+        if (completed != outputReady.Task)
+        {
+            await StopFfmpegAsync();
+            const string timeout = "FFmpeg did not open the RTMP output within 20 seconds. Check the log for connection errors and verify the ingest URL.";
+            await LogAsync(timeout);
+            return new ValueSet { ["Status"] = "Error", ["Error"] = timeout };
+        }
+
+        if (!await outputReady.Task)
+        {
+            const string exited = "FFmpeg exited before opening the RTMP output. Check the log for details.";
+            await LogAsync(exited);
+            return new ValueSet { ["Status"] = "Error", ["Error"] = exited };
+        }
+
+        await LogAsync("RTMP output opened; FFmpeg is sending encoded data. The streaming platform must still confirm the broadcast.");
         return new ValueSet { ["Status"] = "Started" };
     }
     catch (Exception ex)
     {
+        WriteLocalLog("Starting ffmpeg process failed: " + ex);
         return new ValueSet { ["Status"] = "Error", ["Error"] = ex.Message };
     }
+}
+
+string BuildTargetUrl(string url, string key)
+{
+    if (string.IsNullOrEmpty(key))
+    {
+        return url;
+    }
+
+    foreach (string placeholder in new[] { "{stream_key}", "{key}" })
+    {
+        if (url.IndexOf(placeholder, StringComparison.OrdinalIgnoreCase) >= 0)
+        {
+            return Regex.Replace(
+                url,
+                Regex.Escape(placeholder),
+                _ => key,
+                RegexOptions.IgnoreCase);
+        }
+    }
+
+    return url.TrimEnd('/') + "/" + key;
 }
 
 string QuoteArg(string arg)
@@ -210,11 +444,22 @@ serviceConnection.RequestReceived += async (sender, args) =>
         }
         else if (command == "Stop")
         {
-            try { ffmpegProcess?.Kill(); } catch { }
-            ffmpegProcess?.Dispose();
-            ffmpegProcess = null;
-            await args.Request.SendResponseAsync(new ValueSet { ["Status"] = "Stopped" });
-            await SendToWidget(new ValueSet { ["Status"] = "Idle" });
+            try
+            {
+                await StopFfmpegAsync();
+                WriteLocalLog("Stop command completed; FFmpeg publisher terminated.");
+                await args.Request.SendResponseAsync(new ValueSet { ["Status"] = "Stopped" });
+                await SendToWidget(new ValueSet { ["Status"] = "Idle" });
+            }
+            catch (Exception ex)
+            {
+                WriteLocalLog("Stopping FFmpeg failed: " + ex.Message);
+                await args.Request.SendResponseAsync(new ValueSet
+                {
+                    ["Status"] = "Error",
+                    ["Error"] = ex.Message
+                });
+            }
         }
         else if (command == "Ping")
         {
@@ -229,19 +474,30 @@ serviceConnection.RequestReceived += async (sender, args) =>
 
 serviceConnection.ServiceClosed += (_, _) => appServiceExit.Set();
 
+WriteLocalLog("StreamerHost starting. App service name: DirectStreamService.");
 var openStatus = await serviceConnection.OpenAsync();
+WriteLocalLog("App service OpenAsync status: " + openStatus + ".");
 if (openStatus != AppServiceConnectionStatus.Success)
 {
-    // Nowhere to report to: the widget surfaces its own connection error.
+    WriteLocalLog("Could not connect to the widget app service; exiting.");
     return;
 }
 
 // Announce this process as the host side of the relay.
-await serviceConnection.SendMessageAsync(new ValueSet
+var registration = await serviceConnection.SendMessageAsync(new ValueSet
 {
     ["Command"] = "Register",
     ["Role"] = "Host"
 });
+WriteLocalLog("Host registration response: " + registration.Status + ".");
 
 appServiceExit.Wait();
-try { ffmpegProcess?.Kill(); } catch { }
+WriteLocalLog("Widget app service closed; stopping StreamerHost.");
+try
+{
+    await StopFfmpegAsync();
+}
+catch (Exception ex)
+{
+    WriteLocalLog("Stopping ffmpeg after app-service close failed: " + ex.Message);
+}

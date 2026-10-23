@@ -8,7 +8,17 @@
     Background="#0E0520">
 
     <StackPanel Padding="16" Spacing="10">
-        <TextBlock Text="DIRECT STREAM SETTINGS" FontWeight="Bold" Foreground="#00D9FF" />
+        <Grid>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+            <Button Content="&#xE72B;" FontFamily="Segoe MDL2 Assets"
+                    Click="OnBackClick" AutomationProperties.Name="Back to streaming widget" />
+            <TextBlock Grid.Column="1" Text="DIRECT STREAM SETTINGS"
+                       VerticalAlignment="Center" Margin="12,0,0,0"
+                       FontWeight="Bold" Foreground="#00D9FF" />
+        </Grid>
         <TextBox x:Name="DefaultRtmpBox" Header="Default RTMP URL"
                  PlaceholderText="rtmp://ingest.vettv.com/live" />
         <CheckBox x:Name="AutoReconnectCheck" Content="Auto-reconnect if the stream drops"

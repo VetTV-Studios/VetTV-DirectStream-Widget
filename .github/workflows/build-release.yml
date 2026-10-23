@@ -43,8 +43,8 @@ jobs:
       - name: Restore
         run: msbuild XboxGameBarDirectStreamWidget.sln /t:Restore /p:Configuration=Release /p:Platform=x64
 
-      - name: Build StreamerHost first (widget package carries its output)
-        run: dotnet build StreamerHost\StreamerHost.csproj -c Release
+      - name: Publish self-contained StreamerHost
+        run: dotnet publish StreamerHost\StreamerHost.csproj -c Release -r win-x64 --self-contained true
 
       - name: Require signing secrets
         shell: powershell

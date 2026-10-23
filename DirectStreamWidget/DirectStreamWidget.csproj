@@ -148,7 +148,7 @@
   <ItemGroup>
     <!-- The full-trust streaming host ships inside the same package (see the
          windows.fullTrustProcess extension in Package.appxmanifest). -->
-    <Content Include="..\StreamerHost\bin\$(Configuration)\net8.0-windows10.0.22621.0\StreamerHost.exe">
+    <Content Include="..\StreamerHost\bin\$(Configuration)\net8.0-windows10.0.22621.0\win-x64\publish\StreamerHost.exe">
       <Link>StreamerHost\StreamerHost.exe</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>

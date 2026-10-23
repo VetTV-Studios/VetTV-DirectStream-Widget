@@ -11,7 +11,7 @@
   <Identity
     Name="VetTVStudios.DirectStreamWidget"
     Publisher="CN=VetTV Studios"
-    Version="1.1.0.0" />
+    Version="1.1.9.0" />
   <mp:PhoneIdentity PhoneProductId="3d7e8a10-5b6c-4d2e-9f10-2a3b4c5d6e7f" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>Direct Stream</DisplayName>
@@ -91,9 +91,8 @@
             </uap3:Properties>
           </uap3:AppExtension>
         </uap3:Extension>
-        <!-- App service hosted by the widget process (see App.OnBackgroundActivated).
-             The full-trust StreamerHost connects to this service as a client. -->
-        <uap:Extension Category="windows.appService" EntryPoint="DirectStreamWidget.App">
+        <!-- In-process app service activation is handled by App.OnBackgroundActivated. -->
+        <uap:Extension Category="windows.appService">
           <uap3:AppService Name="DirectStreamService" />
         </uap:Extension>
         <!-- Full-trust companion process: runs ffmpeg (NVENC/QSV/x264) and pushes RTMP.
