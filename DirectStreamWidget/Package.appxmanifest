@@ -1,12 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
-<Package xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
-         xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
-         xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
-         xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
-         xmlns:gameBar="http://schemas.microsoft.com/appx/manifest/gamebarwidget/2.0"
-         IgnorableNamespaces="uap mp uap3 gameBar">
-  <Identity Name="VetTVStudios.DirectStreamWidget" Publisher="CN=VetTV" Version="1.0.0.0" />
-  <Mp:PhoneIdentity PhoneProductId="a1b2c3d4-e5f6-7890-abcd-ef1234567890" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+<Package
+  xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
+  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
+  xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
+  xmlns:uap3="http://schemas.microsoft.com/appx/manifest/uap/windows10/3"
+  xmlns:uap4="http://schemas.microsoft.com/appx/manifest/uap/windows10/4"
+  xmlns:desktop="http://schemas.microsoft.com/appx/manifest/desktop/windows10"
+  xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
+  IgnorableNamespaces="uap uap3 uap4 desktop rescap mp">
+  <Identity
+    Name="VetTVStudios.DirectStreamWidget"
+    Publisher="CN=VetTV Studios"
+    Version="1.1.0.0" />
+  <mp:PhoneIdentity PhoneProductId="3d7e8a10-5b6c-4d2e-9f10-2a3b4c5d6e7f" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>Direct Stream</DisplayName>
     <PublisherDisplayName>VetTV Studios</PublisherDisplayName>
@@ -14,38 +20,80 @@
   </Properties>
   <Dependencies>
     <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.18362.0" MaxVersionTested="10.0.22621.0" />
+    <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.18362.0" MaxVersionTested="10.0.22621.0" />
   </Dependencies>
   <Resources>
-    <Resource Language="x-all" />
+    <Resource Language="x-generate" />
   </Resources>
   <Applications>
     <Application Id="App" Executable="$targetnametoken$.exe" EntryPoint="DirectStreamWidget.App">
-      <uap:VisualElements DisplayName="Direct Stream" Square150x150Logo="Assets\Square150x150Logo.png" Square44x44Logo="Assets\SmallLogo.png" Description="Direct RTMP streaming from Game Bar" BackgroundColor="transparent">
+      <uap:VisualElements
+        DisplayName="Direct Stream"
+        Square150x150Logo="Assets\Square150x150Logo.png"
+        Square44x44Logo="Assets\SmallLogo.png"
+        Description="One-click Go Live from Xbox Game Bar - direct RTMP streaming, no OBS needed."
+        BackgroundColor="#0E0520"
+        AppListEntry="none">
         <uap:DefaultTile Wide310x150Logo="Assets\WideTile.png" />
-        <uap:SplashScreen BackgroundColor="#1a1a1a" />
+        <uap:SplashScreen Image="Assets\SplashScreen.png" BackgroundColor="#0E0520" />
       </uap:VisualElements>
       <Extensions>
-        <uap:Extension Category="windows.appService">
-          <uap:AppService Name="DirectStreamService" />
-        </uap:Extension>
+        <!-- Game Bar widget registration. The widget definition IDs below must
+             match the strings handled in App.xaml.cs OnActivated. -->
         <uap3:Extension Category="windows.appExtension">
-          <uap3:AppExtension Name="microsoft.gameBarUIExtension" Id="com.vettv.directstream" DisplayName="Direct Stream" Description="Direct RTMP streaming widget">
+          <uap3:AppExtension Name="microsoft.gameBarUIExtension"
+            Id="com.vettv.directstream"
+            DisplayName="Direct Stream"
+            Description="Direct RTMP streaming widget for Xbox Game Bar"
+            PublicFolder="GameBar">
             <uap3:Properties>
-              <GameBarWidget:GameBarWidget xmlns:GameBarWidget="http://schemas.microsoft.com/appx/manifest/gamebarwidget/2.0" Homed="true" Pinned="false" SupportsAlpha="true" NavigationTargetId="DirectStreamMain" Title="DIRECT STREAM" Icon="Assets\widget_icon.png" Favicon="Assets\widget_icon.png">
-                <GameBarWidget:GameBarWidgetDefinition Id="DirectStreamMain" DisplayName="Direct Stream" Description="Start/stop RTMP stream directly from overlay">
-                  <GameBarWidget:GameBarWidgetSettings SupportsSettings="true" SettingsId="DirectStreamSettings" Title="Stream Settings" />
-                </GameBarWidget:GameBarWidgetDefinition>
-                <GameBarWidget:GameBarWidgetDefinition Id="DirectStreamSettings" DisplayName="Direct Stream Settings" Description="Configure streaming defaults" />
-              </GameBarWidget:GameBarWidget>
+              <GameBarWidget Type="Standard">
+                <Size Height="520" Width="420">
+                  <Height Min="360" Max="900" />
+                  <Width Min="360" Max="640" />
+                </Size>
+                <HomeMenuVisible>true</HomeMenuVisible>
+                <PinningSupported>true</PinningSupported>
+                <SettingsSupported>true</SettingsSupported>
+                <GameBarWidgetDefinition Id="DirectStreamMain" DisplayName="DIRECT STREAM" />
+                <GameBarWidgetSettings SettingsId="DirectStreamSettings" />
+                <GameBarWidgetDefinition Id="DirectStreamSettings" DisplayName="DIRECT STREAM SETTINGS" />
+              </GameBarWidget>
             </uap3:Properties>
           </uap3:AppExtension>
         </uap3:Extension>
+        <!-- App service hosted by the widget process (see App.OnBackgroundActivated).
+             The full-trust StreamerHost connects to this service as a client. -->
+        <uap:Extension Category="windows.appService" EntryPoint="DirectStreamWidget.App">
+          <uap3:AppService Name="DirectStreamService" />
+        </uap:Extension>
+        <!-- Full-trust companion process: runs ffmpeg (NVENC/QSV/x264) and pushes RTMP.
+             Launched from the widget via FullTrustProcessLauncher. -->
+        <desktop:Extension Category="windows.fullTrustProcess" Executable="StreamerHost\StreamerHost.exe">
+          <desktop:FullTrustProcess>
+            <desktop:ParameterGroup GroupId="User" Parameters="" />
+          </desktop:FullTrustProcess>
+        </desktop:Extension>
       </Extensions>
     </Application>
   </Applications>
+  <Extensions>
+    <!-- Proxy/stub registration for the Xbox Game Bar SDK.
+         NOTE: the Microsoft.Gaming.XboxGameBar NuGet package generates this
+         proxy/stub registration at build time in current SDK versions. If the
+         widget does not appear in Game Bar after deploy, compare this section
+         against the official Xbox Game Bar widget sample for SDK 7.3.x and add
+         the sample's <Interface> entries verbatim - do not invent InterfaceIds. -->
+    <Extension Category="windows.activatableClass.proxyStub">
+      <ProxyStub ClassId="00000355-0000-0000-C000-000000000046">
+        <Path>Microsoft.Gaming.XboxGameBar.winmd</Path>
+      </ProxyStub>
+    </Extension>
+  </Extensions>
   <Capabilities>
     <Capability Name="internetClient" />
     <uap:Capability Name="microphone" />
-    <uap3:Capability Name="appDiagnostics" />
+    <uap:Capability Name="appDiagnostics" />
+    <rescap:Capability Name="runFullTrust" />
   </Capabilities>
 </Package>

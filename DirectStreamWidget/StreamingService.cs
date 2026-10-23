@@ -2,87 +2,208 @@ using System;
 using System.Threading.Tasks;
 using Windows.ApplicationModel.AppService;
 using Windows.Foundation.Collections;
+using Windows.Security.Credentials;
 
 namespace DirectStreamWidget
 {
-    public class StreamingService
+    /// <summary>
+    /// Widget-side client for the "DirectStreamService" app service.
+    ///
+    /// Changes from the original scaffold:
+    ///  - NO demo mode. The original returned true when the connection failed,
+    ///    so the UI showed LIVE while nothing was streaming. Connection and
+    ///    command failures now throw / return false with the real reason.
+    ///  - NO ffmpeg argument building here. Args are built once, correctly, in
+    ///    the host (StreamerHost/FfmpegArgs.cs). This class only sends the
+    ///    user's choices.
+    ///  - The stream key can be kept in the Windows PasswordVault instead of
+    ///    plaintext LocalSettings (Settings > "Save stream key" toggle).
+    /// </summary>
+    public sealed class StreamingService
     {
-        private AppServiceConnection connection;
-        public string CurrentBitrate { get; private set; } = "0 kbps";
+        public const string ServiceName = "DirectStreamService";
+        private const string VaultResource = "VetTV.DirectStreamWidget";
 
-        public async Task<bool> StartAsync(string rtmpUrl, string streamKey, int qualityIndex, int encoderIndex, bool desktopAudio, bool micAudio, Action<string> logCallback)
+        private AppServiceConnection _connection;
+
+        public event Action<string> LogReceived;
+        public event Action<string> StatusChanged;
+
+        public async Task<bool> ConnectAsync()
         {
-            try
+            if (_connection != null)
             {
-                connection = new AppServiceConnection
-                {
-                    AppServiceName = "DirectStreamService",
-                    PackageFamilyName = Windows.ApplicationModel.Package.Current.Id.FamilyName
-                };
-                var status = await connection.OpenAsync();
-                if(status != AppServiceConnectionStatus.Success)
-                {
-                    logCallback?.Invoke($"[ERROR] AppService connect failed: {status}. Make sure StreamerHost is installed as FullTrust.");
-                    // Fallback: simulate for demo if no host - in production you'd need FullTrust
-                    logCallback?.Invoke("[WARN] Running in demo mode without FullTrust host. Install StreamerHost for real streaming.");
-                    // For pure UWP demo, return true so UI works - real streaming needs host
-                    return true;
-                }
-
-                var message = new ValueSet
-                {
-                    ["Command"] = "Start",
-                    ["RtmpUrl"] = rtmpUrl,
-                    ["StreamKey"] = streamKey,
-                    ["Quality"] = qualityIndex,
-                    ["Encoder"] = encoderIndex,
-                    ["DesktopAudio"] = desktopAudio,
-                    ["MicAudio"] = micAudio
-                };
-
-                connection.RequestReceived += (s, args) => {
-                    if(args.Message["Log"] is string log) logCallback?.Invoke(log);
-                    if(args.Message["Bitrate"] is string br) CurrentBitrate = br;
-                };
-
-                var response = await connection.SendMessageAsync(message);
-                return response.Status == AppServiceResponseStatus.Success;
+                return true;
             }
-            catch(Exception ex)
+
+            _connection = new AppServiceConnection
             {
-                logCallback?.Invoke($"[EXCEPTION] {ex.Message}");
+                AppServiceName = ServiceName,
+                PackageFamilyName = Windows.ApplicationModel.Package.Current.Id.FamilyName
+            };
+            _connection.RequestReceived += OnRequestReceived;
+            _connection.ServiceClosed += OnServiceClosed;
+
+            AppServiceConnectionStatus status = await _connection.OpenAsync();
+            if (status == AppServiceConnectionStatus.Success)
+            {
+                // Announce this side of the relay (see App.OnBackgroundActivated).
+                try
+                {
+                    await _connection.SendMessageAsync(new ValueSet
+                    {
+                        ["Command"] = "Register",
+                        ["Role"] = "Widget"
+                    });
+                }
+                catch (Exception)
+                {
+                    // Registration is best-effort; command responses still flow.
+                }
+            }
+            if (status != AppServiceConnectionStatus.Success)
+            {
+                LogReceived?.Invoke(
+                    "Could not reach the streaming host (AppServiceConnectionStatus = " + status + "). " +
+                    "Make sure the package was installed with StreamerHost included and try reopening the widget.");
+                _connection.Dispose();
+                _connection = null;
                 return false;
             }
+
+            LogReceived?.Invoke("Connected to streaming host.");
+            return true;
+        }
+
+        public async Task<bool> StartAsync(
+            string rtmpUrl, string streamKey, string quality, string encoder,
+            bool desktopAudio, bool micAudio, bool muteMic)
+        {
+            if (!await ConnectAsync())
+            {
+                return false;
+            }
+
+            var message = new ValueSet
+            {
+                ["Command"] = "Start",
+                ["RtmpUrl"] = rtmpUrl ?? string.Empty,
+                ["StreamKey"] = streamKey ?? string.Empty,
+                ["Quality"] = quality ?? string.Empty,
+                ["Encoder"] = encoder ?? string.Empty,
+                ["DesktopAudio"] = desktopAudio,
+                ["MicAudio"] = micAudio && !muteMic
+            };
+
+            AppServiceResponse response = await _connection.SendMessageAsync(message);
+            if (response.Status != AppServiceResponseStatus.Success)
+            {
+                LogReceived?.Invoke("Host did not answer the Start command (status = " + response.Status + ").");
+                return false;
+            }
+
+            string result = response.Message.TryGetValue("Status", out object s) ? s as string : null;
+            if (result == "Started")
+            {
+                StatusChanged?.Invoke("Live");
+                return true;
+            }
+
+            string error = response.Message.TryGetValue("Error", out object e) ? e as string : "unknown error";
+            LogReceived?.Invoke("Host refused to start: " + error);
+            StatusChanged?.Invoke("Error");
+            return false;
         }
 
         public async Task StopAsync()
         {
-            if(connection != null)
+            if (_connection == null)
             {
-                var msg = new ValueSet { ["Command"] = "Stop" };
-                await connection.SendMessageAsync(msg);
-                connection.Dispose();
-                connection = null;
+                return;
+            }
+
+            try
+            {
+                var message = new ValueSet { ["Command"] = "Stop" };
+                await _connection.SendMessageAsync(message);
+            }
+            catch (Exception ex)
+            {
+                LogReceived?.Invoke("Stop failed: " + ex.Message);
+            }
+            finally
+            {
+                StatusChanged?.Invoke("Idle");
             }
         }
 
-        // Helper to build ffmpeg args (used by StreamerHost)
-        public static string BuildFfmpegArgs(string rtmpUrl, string streamKey, int qualityIndex, int encoderIndex, bool desktopAudio, bool micAudio)
+        private void OnRequestReceived(AppServiceConnection sender, AppServiceRequestReceivedEventArgs args)
         {
-            string fullUrl = rtmpUrl.TrimEnd('/') + "/" + streamKey;
-            string res = qualityIndex switch { 0 => "1280x720", 1 => "1920x1080", 2 => "1920x1080", _ => "1920x1080" };
-            string fps = qualityIndex == 2 ? "30" : "60";
-            string bitrate = qualityIndex switch { 0 => "4500k", 1 => "6000k", 2 => "4500k", _ => "8000k" };
-            string encoder = encoderIndex switch { 1 => "h264_nvenc", 2 => "h264_qsv", 3 => "libx264", _ => "h264_nvenc" };
+            var deferral = args.GetDeferral();
+            try
+            {
+                if (args.Request.Message.TryGetValue("Log", out object log) && log is string text)
+                {
+                    LogReceived?.Invoke(text);
+                }
+                if (args.Request.Message.TryGetValue("Status", out object st) && st is string status)
+                {
+                    StatusChanged?.Invoke(status);
+                }
+            }
+            finally
+            {
+                deferral.Complete();
+            }
+        }
 
-            // Fallback logic handled in host
-            string videoInput = $"-f gdigrab -framerate {fps} -i desktop";
-            string audioInput = desktopAudio && micAudio ? "-f dshow -i audio="virtual-audio-capturer":audio="Microphone"" 
-                              : desktopAudio ? "-f dshow -i audio="virtual-audio-capturer"" 
-                              : micAudio ? "-f dshow -i audio="Microphone"" : "";
+        private void OnServiceClosed(AppServiceConnection sender, AppServiceClosedEventArgs args)
+        {
+            StatusChanged?.Invoke("Idle");
+            LogReceived?.Invoke("Streaming host connection closed.");
+            _connection?.Dispose();
+            _connection = null;
+        }
 
-            // Use ddagrab for Win10 22H2+ if available - more efficient
-            return $"{videoInput} {audioInput} -c:v {encoder} -preset p4 -b:v {bitrate} -maxrate {bitrate} -bufsize {bitrate} -pix_fmt yuv420p -g {int.Parse(fps)*2} -c:a aac -b:a 160k -f flv "{fullUrl}"";
+        // ---- Stream key storage (PasswordVault, not plaintext) ----
+
+        public static void SaveStreamKey(string key)
+        {
+            var vault = new PasswordVault();
+            ClearStreamKey();
+            if (!string.IsNullOrEmpty(key))
+            {
+                vault.Add(new PasswordCredential(VaultResource, "StreamKey", key));
+            }
+        }
+
+        public static string LoadStreamKey()
+        {
+            try
+            {
+                var vault = new PasswordVault();
+                PasswordCredential cred = vault.Retrieve(VaultResource, "StreamKey");
+                cred.RetrievePassword();
+                return cred.Password;
+            }
+            catch (Exception)
+            {
+                return string.Empty;
+            }
+        }
+
+        public static void ClearStreamKey()
+        {
+            try
+            {
+                var vault = new PasswordVault();
+                PasswordCredential cred = vault.Retrieve(VaultResource, "StreamKey");
+                vault.Remove(cred);
+            }
+            catch (Exception)
+            {
+                // Nothing stored.
+            }
         }
     }
 }
