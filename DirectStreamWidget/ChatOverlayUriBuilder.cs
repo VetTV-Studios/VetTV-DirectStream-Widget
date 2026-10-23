@@ -75,7 +75,7 @@ namespace DirectStreamWidget
                 throw new ArgumentException("Enter a Facebook Live page URL.", nameof(target));
             }
 
-            if (platform == "Rumble" &&
+            if (platform.StartsWith("Rumble", StringComparison.OrdinalIgnoreCase) &&
                 !IsHostOrSubdomain(customUri.Host, "rumble.com"))
             {
                 throw new ArgumentException("Enter a Rumble live or chat page URL.", nameof(target));
