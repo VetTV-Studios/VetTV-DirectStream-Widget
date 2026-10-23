@@ -1,0 +1,14 @@
+<Page x:Class="DirectStreamWidget.SettingsWidget" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Background="#CC1E1E1E" RequestedTheme="Dark">
+    <StackPanel Padding="16" Spacing="12">
+        <TextBlock Text="Stream Settings" FontSize="16" FontWeight="Bold" Foreground="White"/>
+        <TextBox x:Name="DefaultRtmpBox" Header="Default RTMP Server" PlaceholderText="rtmp://..."/>
+        <CheckBox x:Name="AutoReconnectCheck" Content="Auto-reconnect on drop" IsChecked="True"/>
+        <CheckBox x:Name="SaveKeyCheck" Content="Save stream key locally (encrypted)" IsChecked="True"/>
+        <ComboBox x:Name="FpsBox" Header="Preferred FPS" SelectedIndex="0">
+            <ComboBoxItem Content="60 FPS"/>
+            <ComboBoxItem Content="30 FPS"/>
+        </ComboBox>
+        <TextBlock Text="FFmpeg path: Place ffmpeg.exe next to StreamerHost or add to PATH. Widget will auto-detect." Foreground="#AAAAAA" FontSize="11" TextWrapping="Wrap"/>
+        <Button Content="Save Defaults" Click="OnSave" Style="{StaticResource PrimaryButton}"/>
+    </StackPanel>
+</Page>
