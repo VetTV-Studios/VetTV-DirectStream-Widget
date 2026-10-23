@@ -1,0 +1,96 @@
+name: Build and Release
+
+# Replaces the stock dotnet-desktop template, which referenced
+# your-solution-name / your-wap-project-path placeholders, ran a test step
+# with no test projects, and could never have built this repo.
+#
+# How releases work:
+#   - Push a version tag (e.g. v1.1.0) -> builds the x64 package, signs it
+#     with the repo's self-signed cert secret, and publishes a GitHub Release
+#     with the .msix + the signing certificate (.cer) attached.
+#   - Manual run (workflow_dispatch) -> builds and uploads the package as a
+#     workflow artifact only, no release.
+#
+# Required repo secrets:
+#   SIGNING_CERT_PFX_BASE64  - base64 of the .pfx whose subject matches the
+#                              manifest Publisher (CN=VetTV Studios).
+#                              Create it with scripts\New-SigningCert.ps1.
+#   SIGNING_CERT_PASSWORD    - the .pfx password.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup .NET (for StreamerHost)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: msbuild XboxGameBarDirectStreamWidget.sln /t:Restore /p:Configuration=Release /p:Platform=x64
+
+      - name: Build StreamerHost first (widget package carries its output)
+        run: dotnet build StreamerHost\StreamerHost.csproj -c Release
+
+      - name: Decode signing certificate
+        if: ${{ secrets.SIGNING_CERT_PFX_BASE64 != '' }}
+        shell: powershell
+        run: |
+          $bytes = [Convert]::FromBase64String("${{ secrets.SIGNING_CERT_PFX_BASE64 }}")
+          [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\signing.pfx", $bytes)
+
+      - name: Build package (signed when the cert secret is present)
+        shell: powershell
+        run: |
+          $extra = @()
+          if (Test-Path "$env:RUNNER_TEMP\signing.pfx") {
+            $extra += "/p:AppxPackageSigningEnabled=true"
+            $extra += "/p:PackageCertificateThumbprint="
+            $extra += "/p:PackageCertificateKeyFile=$env:RUNNER_TEMP\signing.pfx"
+            $extra += "/p:PackageCertificatePassword=${{ secrets.SIGNING_CERT_PASSWORD }}"
+          }
+          msbuild DirectStreamWidget\DirectStreamWidget.csproj `
+            /p:Configuration=Release /p:Platform=x64 `
+            /p:AppxPackageDir="$env:GITHUB_WORKSPACE\artifacts\" `
+            /p:GenerateAppxPackageOnBuild=true `
+            /p:AppxBundle=Never $extra
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DirectStreamWidget-x64
+          path: artifacts/**/*.msix
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.msix
+          generate_release_notes: true
+          body: |
+            ## VetTV Direct Stream Widget ${{ github.ref_name }}
+
+            Xbox Game Bar widget for direct RTMP streaming (Win+G) - Twitch, YouTube, Facebook, Kick, Rumble, and VetTV ingest.
+
+            ### Install (Windows 10 20H1+ / Windows 11, x64)
+            1. Download the `.msix` below.
+            2. The package is signed with the VetTV Studios self-signed certificate. Before installing, trust it once: right-click the `.msix` > Properties > Digital Signatures > View Certificate > Install Certificate > Local Machine > Trusted People. (Or run `scripts\Install-Cert.ps1` once the matching `.cer` is attached to a release.)
+            3. Double-click the `.msix` and install.
+            4. Press **Win+G**, open the widget menu, and pin **Direct Stream**.
+            5. You need ffmpeg: put `ffmpeg.exe` next to the app (see INSTALL.md in the repo) or install ffmpeg and add it to PATH. For NVENC, use a current NVIDIA driver.
+
+            Full instructions: INSTALL.md in the repo.
