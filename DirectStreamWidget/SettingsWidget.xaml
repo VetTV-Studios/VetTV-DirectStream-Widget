@@ -1,14 +1,27 @@
-<Page x:Class="DirectStreamWidget.SettingsWidget" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Background="#CC1E1E1E" RequestedTheme="Dark">
-    <StackPanel Padding="16" Spacing="12">
-        <TextBlock Text="Stream Settings" FontSize="16" FontWeight="Bold" Foreground="White"/>
-        <TextBox x:Name="DefaultRtmpBox" Header="Default RTMP Server" PlaceholderText="rtmp://..."/>
-        <CheckBox x:Name="AutoReconnectCheck" Content="Auto-reconnect on drop" IsChecked="True"/>
-        <CheckBox x:Name="SaveKeyCheck" Content="Save stream key locally (encrypted)" IsChecked="True"/>
-        <ComboBox x:Name="FpsBox" Header="Preferred FPS" SelectedIndex="0">
-            <ComboBoxItem Content="60 FPS"/>
-            <ComboBoxItem Content="30 FPS"/>
+<Page
+    x:Class="DirectStreamWidget.SettingsWidget"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    mc:Ignorable="d"
+    Background="#0E0520">
+
+    <StackPanel Padding="16" Spacing="10">
+        <TextBlock Text="DIRECT STREAM SETTINGS" FontWeight="Bold" Foreground="#00D9FF" />
+        <TextBox x:Name="DefaultRtmpBox" Header="Default RTMP URL"
+                 PlaceholderText="rtmp://ingest.vettv.com/live" />
+        <CheckBox x:Name="AutoReconnectCheck" Content="Auto-reconnect if the stream drops"
+                  IsChecked="True" Foreground="White" />
+        <CheckBox x:Name="SaveKeyCheck" Content="Save stream key in Windows Credential Vault"
+                  IsChecked="True" Foreground="White" />
+        <ComboBox x:Name="FpsBox" Header="Preferred frame rate" HorizontalAlignment="Stretch" SelectedIndex="0">
+            <ComboBoxItem Content="60 FPS" />
+            <ComboBoxItem Content="30 FPS" />
         </ComboBox>
-        <TextBlock Text="FFmpeg path: Place ffmpeg.exe next to StreamerHost or add to PATH. Widget will auto-detect." Foreground="#AAAAAA" FontSize="11" TextWrapping="Wrap"/>
-        <Button Content="Save Defaults" Click="OnSave" Style="{StaticResource PrimaryButton}"/>
+        <TextBlock Foreground="Gray" TextWrapping="Wrap"
+                   Text="ffmpeg: place ffmpeg.exe next to StreamerHost.exe inside the installed package, or add ffmpeg to your PATH. NVENC needs an NVIDIA driver; otherwise pick Auto and the host falls back to QSV or x264." />
+        <Button Content="Save Defaults" Style="{StaticResource PrimaryButton}" Click="OnSaveClick" />
+        <TextBlock x:Name="SavedText" Text="" Foreground="#00D9FF" />
     </StackPanel>
 </Page>

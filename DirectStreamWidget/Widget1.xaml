@@ -1,81 +1,81 @@
-<Page x:Class="DirectStreamWidget.Widget1"
-      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-      Background="#CC1E1E1E" RequestedTheme="Dark">
-    <Grid Padding="12" RowSpacing="8">
+<Page
+    x:Class="DirectStreamWidget.Widget1"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    mc:Ignorable="d"
+    Background="#0E0520">
+
+    <Grid Padding="16">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8">
-            <Ellipse Width="10" Height="10" x:Name="StatusLight" Fill="Gray"/>
-            <TextBlock Text="DIRECT STREAM" FontWeight="Bold" FontSize="14" Foreground="White"/>
-            <TextBlock x:Name="StatusText" Text="Idle" Foreground="#AAAAAA" Margin="8,0,0,0"/>
-        </StackPanel>
-
-        <!-- RTMP Inputs -->
-        <StackPanel Grid.Row="1" Spacing="6">
-            <TextBox x:Name="RtmpUrlBox" PlaceholderText="rtmp://live.twitch.tv/app or rtmp://a.rtmp.youtube.com/live2" Header="RTMP URL" FontSize="12"/>
-            <PasswordBox x:Name="StreamKeyBox" PlaceholderText="Stream Key (saved locally)" Header="Stream Key" FontSize="12"/>
-        </StackPanel>
-
-        <!-- Options -->
-        <Grid Grid.Row="2" ColumnSpacing="8">
+        <!-- Header / status -->
+        <Grid Grid.Row="0" Margin="0,0,0,12">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
-            <ComboBox x:Name="QualityBox" Header="Quality" SelectedIndex="1" HorizontalAlignment="Stretch">
-                <ComboBoxItem Content="720p60 - 4500k"/>
-                <ComboBoxItem Content="1080p60 - 6000k"/>
-                <ComboBoxItem Content="1080p30 - 4500k"/>
-                <ComboBoxItem Content="Source - 8000k"/>
-            </ComboBox>
-            <ComboBox x:Name="EncoderBox" Grid.Column="1" Header="Encoder" SelectedIndex="0">
-                <ComboBoxItem Content="Auto (NVENC/QSV/x264)"/>
-                <ComboBoxItem Content="NVIDIA NVENC"/>
-                <ComboBoxItem Content="Intel QSV"/>
-                <ComboBoxItem Content="x264 (CPU)"/>
-            </ComboBox>
+            <Ellipse x:Name="StatusLight" Grid.Column="0" Width="12" Height="12"
+                     Fill="Gray" VerticalAlignment="Center" Margin="0,0,8,0" />
+            <TextBlock Grid.Column="1" VerticalAlignment="Center">
+                <Run Text="DIRECT STREAM" FontWeight="Bold" Foreground="#00D9FF" />
+                <Run Text="  -  " Foreground="Gray" />
+                <Run x:Name="StatusText" Text="Idle" Foreground="White" />
+            </TextBlock>
+            <Button Grid.Column="2" Content="&#xE713;" FontFamily="Segoe MDL2 Assets"
+                    Click="OnSettingsClick" Background="Transparent" Foreground="White" />
         </Grid>
 
-        <StackPanel Grid.Row="3" Orientation="Horizontal" Spacing="12">
-            <CheckBox x:Name="DesktopAudioCheck" Content="Desktop Audio" IsChecked="True"/>
-            <CheckBox x:Name="MicAudioCheck" Content="Mic" IsChecked="True"/>
-            <CheckBox x:Name="MuteMicCheck" Content="Mute Mic" IsChecked="False"/>
+        <!-- Platform + destination -->
+        <StackPanel Grid.Row="1" Spacing="8" Margin="0,0,0,12">
+            <ComboBox x:Name="PlatformBox" Header="Platform" HorizontalAlignment="Stretch"
+                      SelectionChanged="OnPlatformChanged" />
+            <TextBox x:Name="RtmpUrlBox" Header="RTMP URL" PlaceholderText="rtmp://ingest.vettv.com/live" />
+            <PasswordBox x:Name="StreamKeyBox" Header="Stream key" />
         </StackPanel>
 
-        <!-- Main Action -->
-        <Button Grid.Row="4" x:Name="StreamButton" Click="OnStreamButtonClick" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Stretch" Height="44">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <SymbolIcon Symbol="Video" />
-                <TextBlock x:Name="StreamButtonText" Text="START STREAMING" FontWeight="SemiBold"/>
-            </StackPanel>
-        </Button>
+        <!-- Quality + encoder -->
+        <StackPanel Grid.Row="2" Spacing="8" Margin="0,0,0,12">
+            <ComboBox x:Name="QualityBox" Header="Quality" HorizontalAlignment="Stretch" SelectedIndex="2">
+                <ComboBoxItem Content="720p60 - 4500k" />
+                <ComboBoxItem Content="720p30 - 3000k" />
+                <ComboBoxItem Content="1080p60 - 6000k" />
+                <ComboBoxItem Content="1080p30 - 4500k" />
+                <ComboBoxItem Content="1440p60 - 9000k" />
+                <ComboBoxItem Content="1440p30 - 7000k" />
+            </ComboBox>
+            <ComboBox x:Name="EncoderBox" Header="Encoder" HorizontalAlignment="Stretch" SelectedIndex="0">
+                <ComboBoxItem Content="Auto (NVENC/QSV/x264)" />
+                <ComboBoxItem Content="NVIDIA NVENC" />
+                <ComboBoxItem Content="Intel QSV" />
+                <ComboBoxItem Content="x264 (CPU)" />
+            </ComboBox>
+        </StackPanel>
 
-        <!-- Log / Stats -->
-        <Border Grid.Row="5" Background="#22000000" CornerRadius="4" Padding="8" Margin="0,4,0,0">
-            <ScrollViewer>
-                <TextBlock x:Name="LogBox" Text="Ready to stream. Enter RTMP details.
-Tip: For YouTube, use rtmp://a.rtmp.youtube.com/live2
-For Twitch, use rtmp://live.twitch.tv/app" FontFamily="Consolas" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap"/>
-            </ScrollViewer>
-        </Border>
+        <!-- Audio -->
+        <StackPanel Grid.Row="3" Spacing="4" Margin="0,0,0,12">
+            <CheckBox x:Name="DesktopAudioCheck" Content="Desktop / game audio" IsChecked="True" Foreground="White" />
+            <CheckBox x:Name="MicAudioCheck" Content="Microphone" IsChecked="True" Foreground="White" />
+            <CheckBox x:Name="MuteMicCheck" Content="Mute mic" IsChecked="False" Foreground="White" />
+        </StackPanel>
 
-        <Grid Grid.Row="6">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <TextBlock x:Name="StatsText" Text="0:00:00 | 0 kbps" Foreground="#888888" FontSize="11" VerticalAlignment="Center"/>
-            <Button Grid.Column="1" Content="⚙" Click="OnSettingsClick" Background="Transparent" Foreground="#AAAAAA" Width="32" Height="32"/>
-        </Grid>
+        <Button x:Name="StreamButton" Grid.Row="4" Content="START STREAMING"
+                Style="{StaticResource PrimaryButton}" Click="OnStreamButtonClick" Margin="0,0,0,12" />
+
+        <TextBlock x:Name="StatsText" Grid.Row="5" Text="" Foreground="Gray" Margin="0,0,0,8" />
+
+        <TextBox x:Name="LogBox" Grid.Row="6" IsReadOnly="True" AcceptsReturn="True"
+                 TextWrapping="Wrap" FontFamily="Consolas" FontSize="11"
+                 Background="#140A2E" Foreground="#B8B8D0" />
     </Grid>
 </Page>
