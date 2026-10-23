@@ -46,36 +46,77 @@ jobs:
       - name: Build StreamerHost first (widget package carries its output)
         run: dotnet build StreamerHost\StreamerHost.csproj -c Release
 
-      - name: Decode signing certificate
-        if: ${{ secrets.SIGNING_CERT_PFX_BASE64 != '' }}
+      - name: Require signing secrets
         shell: powershell
+        env:
+          SIGNING_CERT_PFX_BASE64: ${{ secrets.SIGNING_CERT_PFX_BASE64 }}
+          SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
         run: |
-          $bytes = [Convert]::FromBase64String("${{ secrets.SIGNING_CERT_PFX_BASE64 }}")
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_CERT_PFX_BASE64)) {
+            throw "SIGNING_CERT_PFX_BASE64 is required to build an installable package."
+          }
+          if ([string]::IsNullOrWhiteSpace($env:SIGNING_CERT_PASSWORD)) {
+            throw "SIGNING_CERT_PASSWORD is required to build an installable package."
+          }
+
+      - name: Decode signing certificate
+        shell: powershell
+        env:
+          SIGNING_CERT_PFX_BASE64: ${{ secrets.SIGNING_CERT_PFX_BASE64 }}
+        run: |
+          $bytes = [Convert]::FromBase64String($env:SIGNING_CERT_PFX_BASE64)
           [IO.File]::WriteAllBytes("$env:RUNNER_TEMP\signing.pfx", $bytes)
 
-      - name: Build package (signed when the cert secret is present)
+      - name: Build signed package
         shell: powershell
+        env:
+          SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
         run: |
-          $extra = @()
-          if (Test-Path "$env:RUNNER_TEMP\signing.pfx") {
-            $extra += "/p:AppxPackageSigningEnabled=true"
-            $extra += "/p:PackageCertificateThumbprint="
-            $extra += "/p:PackageCertificateKeyFile=$env:RUNNER_TEMP\signing.pfx"
-            $extra += "/p:PackageCertificatePassword=${{ secrets.SIGNING_CERT_PASSWORD }}"
-          }
           msbuild DirectStreamWidget\DirectStreamWidget.csproj `
             /p:Configuration=Release /p:Platform=x64 `
             /p:AppxPackageDir="$env:GITHUB_WORKSPACE\artifacts\" `
             /p:GenerateAppxPackageOnBuild=true `
-            /p:AppxBundle=Never $extra
+            /p:AppxBundle=Never `
+            /p:AppxPackageSigningEnabled=true `
+            /p:PackageCertificateKeyFile="$env:RUNNER_TEMP\signing.pfx" `
+            /p:PackageCertificatePassword="$env:SIGNING_CERT_PASSWORD"
 
       - name: Export public signing certificate
-        if: ${{ secrets.SIGNING_CERT_PFX_BASE64 != '' }}
         shell: powershell
+        env:
+          SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
         run: |
-          $password = ConvertTo-SecureString "${{ secrets.SIGNING_CERT_PASSWORD }}" -AsPlainText -Force
+          $password = ConvertTo-SecureString $env:SIGNING_CERT_PASSWORD -AsPlainText -Force
           $certificate = (Get-PfxData -FilePath "$env:RUNNER_TEMP\signing.pfx" -Password $password).EndEntityCertificates[0]
           Export-Certificate -Cert $certificate -FilePath "$env:GITHUB_WORKSPACE\artifacts\VetTVStudios-Signing.cer" | Out-Null
+
+      - name: Verify package signature
+        shell: powershell
+        env:
+          SIGNING_CERT_PASSWORD: ${{ secrets.SIGNING_CERT_PASSWORD }}
+        run: |
+          $password = ConvertTo-SecureString $env:SIGNING_CERT_PASSWORD -AsPlainText -Force
+          $certificate = (Get-PfxData -FilePath "$env:RUNNER_TEMP\signing.pfx" -Password $password).EndEntityCertificates[0]
+          $store = New-Object System.Security.Cryptography.X509Certificates.X509Store("TrustedPeople", "CurrentUser")
+          $store.Open([System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite)
+          try {
+            $store.Add($certificate)
+          }
+          finally {
+            $store.Close()
+          }
+
+          $packages = @(Get-ChildItem -Path "$env:GITHUB_WORKSPACE\artifacts" -Filter *.msix -Recurse)
+          if ($packages.Count -ne 1) {
+            throw "Expected exactly one MSIX package; found $($packages.Count)."
+          }
+          $signature = Get-AuthenticodeSignature -LiteralPath $packages[0].FullName
+          if ($signature.Status -ne "Valid") {
+            throw "MSIX signature is not valid: $($signature.StatusMessage)"
+          }
+          if ($signature.SignerCertificate.Thumbprint -ne $certificate.Thumbprint) {
+            throw "MSIX signer does not match the configured VetTV Studios certificate."
+          }
 
       - name: Upload package artifact
         uses: actions/upload-artifact@v4
