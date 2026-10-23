@@ -1,0 +1,68 @@
+<Page
+    x:Class="DirectStreamWidget.ChatOverlayWidget"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Background="#0E0520">
+
+    <Grid Padding="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <TextBlock x:Name="ChatTitle"
+                   Text="LIVE CHAT"
+                   FontWeight="Bold"
+                   Foreground="#00D9FF"
+                   Margin="2,0,0,8" />
+
+        <Grid Grid.Row="1" Margin="0,0,0,6">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <ComboBox x:Name="PlatformBox"
+                      Header="Platform"
+                      HorizontalAlignment="Stretch"
+                      SelectionChanged="OnPlatformChanged" />
+            <Button Grid.Column="1"
+                    Content="LOAD CHAT"
+                    VerticalAlignment="Bottom"
+                    Click="OnLoadChatClick"
+                    Margin="8,0,0,0" />
+        </Grid>
+
+        <StackPanel Grid.Row="2" Margin="0,0,0,6">
+            <TextBox x:Name="TargetBox"
+                     Header="Channel / live video"
+                     PlaceholderText="Enter this platform's channel or live video" />
+            <Grid Margin="0,4,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock x:Name="StatusText"
+                           Text="Choose a platform and enter its channel or live video."
+                           TextWrapping="Wrap"
+                           Foreground="#B8B8D0"
+                           FontSize="11"
+                           VerticalAlignment="Center" />
+                <Button x:Name="BrowserButton"
+                        Grid.Column="1"
+                        Content="Open in browser"
+                        Click="OnOpenInBrowserClick"
+                        Visibility="Collapsed"
+                        Padding="8,3"
+                        Margin="6,0,0,0" />
+            </Grid>
+        </StackPanel>
+
+        <WebView x:Name="ChatView"
+                 Grid.Row="3"
+                 NavigationStarting="OnNavigationStarting"
+                 NavigationCompleted="OnNavigationCompleted"
+                 NavigationFailed="OnNavigationFailed" />
+    </Grid>
+</Page>
