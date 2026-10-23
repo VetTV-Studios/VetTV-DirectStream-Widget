@@ -1,37 +1,25 @@
-# VetTV DirectStream Widget
-### Xbox Game Bar Widget for Direct RTMP Streaming (Win+G)
+# VetTV DirectStream
 
-[[License: MIT](https://img.shields.io/badge/License-MIT-00D9FF.svg?style=for-the-badge)](LICENSE)
-[[Platform](https://img.shields.io/badge/Platform-Windows%2010%2F11-0078D4?style=for-the-badge&logo=windows&logoColor=white)](https://www.microsoft.com/windows)
-[[Xbox Game Bar](https://img.shields.io/badge/Xbox-Game%20Bar%20Widget-107C10?style=for-the-badge&logo=xbox&logoColor=white)](https://learn.microsoft.com/en-us/gaming/game-bar/)
-[[RTX NVENC](https://img.shields.io/badge/Encoder-RTX%20NVENC-76B900?style=for-the-badge&logo=nvidia&logoColor=white)](https://developer.nvidia.com/video-codec-sdk)
-[[Direct RTMP](https://img.shields.io/badge/Streaming-Direct%20RTMP-FF2E9A?style=for-the-badge)](https://github.com/VetTV-Studios/VetTV-DirectStream-Widget)
-[[VetTV Studios](https://img.shields.io/badge/VetTV%20Studios-Handheld%20News-0E0520?style=for-the-badge)](https://vettv-studios.github.io/vettv-handheld-news/)
+Stream your Windows desktop/game straight to Twitch, YouTube, Facebook, Kick, Rumble or the VetTV ingest.
+Hardware encoding (NVIDIA NVENC, AMD AMF, Intel QSV, CPU fallback), 720p/1080p/1440p at 30/60 fps,
+and a built-in game + mic mixer with level meters.
 
-> **One-click Go Live from Game Bar — no OBS needed.** Built for VetTV Studios with custom VetTV ingest as default, plus Twitch, YouTube, Facebook, Kick, Rumble.
+## Install
+1. Go to **Releases** and download `VetTV-DirectStream-Setup-x.y.z.exe`.
+2. Run it (no admin needed). Windows SmartScreen may warn because the app isn't code-signed yet: **More info → Run anyway**.
+3. Open VetTV DirectStream, pick your platform, paste your stream key, press **Go Live**.
 
----
+A portable `.zip` is also attached to each release. FFmpeg is bundled.
 
-### Features
-- 🎖️ **VetTV Ingest Default** — `rtmp://ingest.vettv.com/live` (change in `PlatformPresets.cs`)
-- 🎮 **Xbox Game Bar Native** — Win+G overlay, no alt-tab
-- ⚡ **RTX NVENC Hardware Encoding**
-- 🎥 **6 Resolutions:** 720p / 1080p / 1440p @ 30 / 60fps
-- 🎙️ **Game/Mic Mixer**
-- 💬 **Live Chat Overlay Widget**
-- 🎨 **VH Neon Branding** — matching https://vettv-studios.github.io/vettv-handheld-news/
+## Notes
+- Stream keys are encrypted with Windows DPAPI for your account and never written to the log.
+- Auto bitrate: 720p 3.5/4.5 Mbps, 1080p 6/8 Mbps, 1440p 9/12 Mbps (30/60 fps). Twitch caps around 6-8 Mbps; lower it manually if rejected.
+- Kick/Rumble/VetTV: copy the ingest URL from your dashboard into Server URL.
+- Captures the primary desktop. For games, use borderless/windowed-fullscreen.
 
-### Quick Start
-```powershell
-# Clone
-git clone https://github.com/VetTV-Studios/VetTV-DirectStream-Widget.git
-# Open in Visual Studio 2022
-# Set DirectStreamWidget as Startup Project -> F5 (Game Bar Debugging)
+## Build / release
 ```
-
-### Branding
-Icons use VH neon circle (#0E0520 bg, #00D9FF cyan, #FF2E9A pink) matching VetTV Handheld News.
-
----
-
-**License:** MIT - See [LICENSE](LICENSE) | **Website:** https://vettv-studios.github.io/vettv-handheld-news/
+dotnet publish src/VetTVDirectStream -c Release -r win-x64 --self-contained
+git tag v1.0.0 && git push origin v1.0.0   # GitHub Actions builds installer + zip and publishes the release
+```
+MIT licensed. FFmpeg (GPL build) is downloaded at release time from BtbN/FFmpeg-Builds.
