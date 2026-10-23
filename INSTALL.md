@@ -9,9 +9,8 @@ Xbox Game Bar widget for direct RTMP streaming (Win+G). No OBS needed.
 - Optional: NVIDIA GPU + current driver for NVENC; otherwise the widget falls back to Intel QSV or x264 (CPU)
 
 ## Install from a GitHub Release
-1. Download the `.msix` from the latest release on this repo.
-2. **Trust the signing certificate once.** Release packages are signed with the VetTV Studios self-signed certificate (subject `CN=VetTV Studios`, matching the app manifest). Windows won't install a sideloaded package until that cert is trusted:
-   - Right-click the downloaded `.msix` > **Properties** > **Digital Signatures** tab > select the VetTV Studios signature > **Details** > **View Certificate** > **Install Certificate** > **Local Machine** > place it in **Trusted People** > Finish.
+1. Download the `.msix` and `VetTVStudios-Signing.cer` from the same release.
+2. **Trust the signing certificate once.** Release packages are signed with the VetTV Studios self-signed certificate (subject `CN=VetTV Studios`, matching the app manifest). Windows won't install a sideloaded package until that certificate is trusted. From an elevated PowerShell opened in the repository, run `.\scripts\Install-Cert.ps1 -CertificatePath "C:\path\to\VetTVStudios-Signing.cer"`. Alternatively, right-click the `.cer` > **Install Certificate** > **Local Machine** > **Trusted People** > Finish. Only trust the certificate when it came from the official VetTV Studios release.
 3. **Install ffmpeg.** Run `scripts\Get-Ffmpeg.ps1` from this repo (installs to `C:\ffmpeg\bin`, which the streaming host searches), or install ffmpeg any other way and add it to PATH.
 4. Double-click the `.msix` and click **Install**.
 5. Press **Win+G**. Open the widget menu (top bar), find **Direct Stream**, and pin it.
