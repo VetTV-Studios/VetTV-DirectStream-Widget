@@ -33,7 +33,8 @@
                 <Run x:Name="StatusText" Text="Idle" Foreground="White" />
             </TextBlock>
             <Button Grid.Column="2" Content="&#xE713;" FontFamily="Segoe MDL2 Assets"
-                    Click="OnSettingsClick" Background="Transparent" Foreground="White" />
+                    Click="OnSettingsClick" Background="Transparent" Foreground="White"
+                    AutomationProperties.Name="Settings" />
         </Grid>
 
         <!-- Platform + destination -->
@@ -46,7 +47,7 @@
 
         <!-- Quality + encoder -->
         <StackPanel Grid.Row="2" Spacing="8" Margin="0,0,0,12">
-            <ComboBox x:Name="QualityBox" Header="Quality" HorizontalAlignment="Stretch" SelectedIndex="2">
+            <ComboBox x:Name="QualityBox" Header="Quality" HorizontalAlignment="Stretch" SelectedIndex="1">
                 <ComboBoxItem Content="720p60 - 4500k" />
                 <ComboBoxItem Content="720p30 - 3000k" />
                 <ComboBoxItem Content="1080p60 - 6000k" />
@@ -74,8 +75,25 @@
 
         <TextBlock x:Name="StatsText" Grid.Row="5" Text="" Foreground="Gray" Margin="0,0,0,8" />
 
-        <TextBox x:Name="LogBox" Grid.Row="6" IsReadOnly="True" AcceptsReturn="True"
-                 TextWrapping="Wrap" FontFamily="Consolas" FontSize="11"
-                 Background="#140A2E" Foreground="#B8B8D0" />
+        <Grid Grid.Row="6">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+            <Grid ColumnSpacing="8" Margin="0,0,0,4">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="LOG - copy these messages if Start fails"
+                           VerticalAlignment="Center" Foreground="#B8B8D0" FontSize="11" />
+                <Button Grid.Column="1" Content="Copy log" Click="OnCopyLogClick"
+                        Padding="8,2" />
+            </Grid>
+            <TextBox x:Name="LogBox" Grid.Row="1" IsReadOnly="True" AcceptsReturn="True"
+                     TextWrapping="Wrap" FontFamily="Consolas" FontSize="11"
+                     Background="#140A2E" Foreground="#B8B8D0"
+                     AutomationProperties.Name="Streaming diagnostics log" />
+        </Grid>
     </Grid>
 </Page>

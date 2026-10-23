@@ -46,5 +46,13 @@ namespace DirectStreamWidget
 
             SavedText.Text = "Saved.";
         }
+
+        private void OnBackClick(object sender, RoutedEventArgs e)
+        {
+            if (Frame != null)
+            {
+                Frame.Navigate(typeof(Widget1));
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ using System.Threading.Tasks;
 using Windows.ApplicationModel.AppService;
 using Windows.Foundation.Collections;
 using Windows.Security.Credentials;
+using Windows.UI.Xaml;
 
 namespace DirectStreamWidget
 {
@@ -44,21 +45,41 @@ namespace DirectStreamWidget
             _connection.RequestReceived += OnRequestReceived;
             _connection.ServiceClosed += OnServiceClosed;
 
-            AppServiceConnectionStatus status = await _connection.OpenAsync();
+            AppServiceConnectionStatus status;
+            try
+            {
+                status = await _connection.OpenAsync();
+            }
+            catch (Exception ex)
+            {
+                LogReceived?.Invoke("Opening the streaming host connection failed: " + ex.Message);
+                _connection.Dispose();
+                _connection = null;
+                return false;
+            }
+
             if (status == AppServiceConnectionStatus.Success)
             {
-                // Announce this side of the relay (see App.OnBackgroundActivated).
                 try
                 {
-                    await _connection.SendMessageAsync(new ValueSet
+                    AppServiceResponse registration = await _connection.SendMessageAsync(new ValueSet
                     {
                         ["Command"] = "Register",
                         ["Role"] = "Widget"
                     });
+                    if (registration.Status != AppServiceResponseStatus.Success ||
+                        registration.Message == null ||
+                        !registration.Message.TryGetValue("Status", out object registered) ||
+                        (registered as string) != "Registered")
+                    {
+                        LogReceived?.Invoke(
+                            "The streaming service did not confirm widget registration (status = " +
+                            registration.Status + ").");
+                    }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    // Registration is best-effort; command responses still flow.
+                    LogReceived?.Invoke("Registering the widget with the streaming service failed: " + ex.Message);
                 }
             }
             if (status != AppServiceConnectionStatus.Success)
@@ -95,46 +116,107 @@ namespace DirectStreamWidget
                 ["MicAudio"] = micAudio && !muteMic
             };
 
-            AppServiceResponse response = await _connection.SendMessageAsync(message);
-            if (response.Status != AppServiceResponseStatus.Success)
+            AppServiceResponse response;
+            try
             {
-                LogReceived?.Invoke("Host did not answer the Start command (status = " + response.Status + ").");
+                response = await _connection.SendMessageAsync(message);
+            }
+            catch (Exception ex)
+            {
+                LogReceived?.Invoke("Sending the Start command failed: " + ex.Message);
+                StatusChanged?.Invoke("Error");
                 return false;
             }
 
-            string result = response.Message.TryGetValue("Status", out object s) ? s as string : null;
+            if (response.Status != AppServiceResponseStatus.Success)
+            {
+                LogReceived?.Invoke("Host did not answer the Start command (status = " + response.Status + ").");
+                StatusChanged?.Invoke("Error");
+                return false;
+            }
+
+            string result = response.Message != null &&
+                response.Message.TryGetValue("Status", out object s) ? s as string : null;
             if (result == "Started")
             {
-                StatusChanged?.Invoke("Live");
+                StatusChanged?.Invoke("Sending (platform unconfirmed)");
                 return true;
             }
 
-            string error = response.Message.TryGetValue("Error", out object e) ? e as string : "unknown error";
+            string error = response.Message != null &&
+                response.Message.TryGetValue("Error", out object e) ? e as string : "Host returned no error details.";
             LogReceived?.Invoke("Host refused to start: " + error);
             StatusChanged?.Invoke("Error");
             return false;
         }
 
-        public async Task StopAsync()
+        public async Task<bool> StopAsync()
+        {
+            if (await SendStopCommandAsync())
+            {
+                StatusChanged?.Invoke("Idle");
+                return true;
+            }
+
+            ResetConnection();
+            if (Application.Current is App app && await app.EnsureHostLaunchedAsync())
+            {
+                if (await ConnectAsync() && await SendStopCommandAsync())
+                {
+                    StatusChanged?.Invoke("Idle");
+                    return true;
+                }
+            }
+
+            LogReceived?.Invoke(
+                "Could not confirm stream stop because the streaming host did not reconnect. " +
+                "Check the dashboard and retry Stop from the widget.");
+            return false;
+        }
+
+        private async Task<bool> SendStopCommandAsync()
         {
             if (_connection == null)
             {
-                return;
+                return false;
             }
 
             try
             {
                 var message = new ValueSet { ["Command"] = "Stop" };
-                await _connection.SendMessageAsync(message);
+                Task<AppServiceResponse> request = _connection.SendMessageAsync(message).AsTask();
+                Task completed = await Task.WhenAny(request, Task.Delay(TimeSpan.FromSeconds(8)));
+                if (completed != request)
+                {
+                    LogReceived?.Invoke("The Stop request timed out before the host confirmed shutdown.");
+                    return false;
+                }
+
+                AppServiceResponse response = await request;
+                string result = response.Message != null &&
+                    response.Message.TryGetValue("Status", out object status) ? status as string : null;
+                if (response.Status != AppServiceResponseStatus.Success || result != "Stopped")
+                {
+                    string error = response.Message != null &&
+                        response.Message.TryGetValue("Error", out object details) ?
+                        details as string : "The streaming host did not confirm that FFmpeg stopped.";
+                    LogReceived?.Invoke("Stop was not confirmed: " + error);
+                    return false;
+                }
+
+                return true;
             }
             catch (Exception ex)
             {
-                LogReceived?.Invoke("Stop failed: " + ex.Message);
+                LogReceived?.Invoke("Stop request failed: " + ex.Message);
+                return false;
             }
-            finally
-            {
-                StatusChanged?.Invoke("Idle");
-            }
+        }
+
+        private void ResetConnection()
+        {
+            _connection?.Dispose();
+            _connection = null;
         }
 
         private void OnRequestReceived(AppServiceConnection sender, AppServiceRequestReceivedEventArgs args)
@@ -161,8 +243,7 @@ namespace DirectStreamWidget
         {
             StatusChanged?.Invoke("Idle");
             LogReceived?.Invoke("Streaming host connection closed.");
-            _connection?.Dispose();
-            _connection = null;
+            ResetConnection();
         }
 
         // ---- Stream key storage (PasswordVault, not plaintext) ----

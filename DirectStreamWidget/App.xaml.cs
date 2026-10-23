@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Threading.Tasks;
 using Microsoft.Gaming.XboxGameBar;
 using Windows.ApplicationModel;
@@ -34,6 +35,8 @@ namespace DirectStreamWidget
         private AppServiceConnection _widgetConnection;
         private BackgroundTaskDeferral _appServiceDeferral;
         private bool _hostLaunchAttempted;
+        private TaskCompletionSource<bool> _hostRegistration =
+            new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public App()
         {
@@ -80,6 +83,7 @@ namespace DirectStreamWidget
                             widgetArgs,
                             Window.Current.CoreWindow,
                             rootFrame);
+                        _mainWidget.SettingsClicked += OnMainWidgetSettingsClicked;
                         rootFrame.Navigate(typeof(Widget1));
                     }
                     else if (widgetArgs.AppExtensionId == "DirectStreamSettings")
@@ -99,6 +103,18 @@ namespace DirectStreamWidget
             }
 
             base.OnActivated(args);
+        }
+
+        private async void OnMainWidgetSettingsClicked(XboxGameBarWidget sender, object args)
+        {
+            try
+            {
+                await sender.ActivateSettingsAsync();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("Xbox Game Bar settings activation failed: " + ex);
+            }
         }
 
         /// <summary>
@@ -131,7 +147,12 @@ namespace DirectStreamWidget
                 if (command == "Register")
                 {
                     string role = message.TryGetValue("Role", out object r) ? r as string : null;
-                    if (role == "Host") _hostConnection = sender;
+                    if (role == "Host")
+                    {
+                        _hostConnection = sender;
+                        _hostLaunchAttempted = true;
+                        _hostRegistration.TrySetResult(true);
+                    }
                     else if (role == "Widget") _widgetConnection = sender;
                     await args.Request.SendResponseAsync(
                         new Windows.Foundation.Collections.ValueSet { ["Status"] = "Registered" });
@@ -154,8 +175,34 @@ namespace DirectStreamWidget
                         return;
                     }
 
-                    var hostResponse = await _hostConnection.SendMessageAsync(message);
-                    await args.Request.SendResponseAsync(hostResponse.Message);
+                    try
+                    {
+                        var hostResponse = await _hostConnection.SendMessageAsync(message);
+                        if (hostResponse.Status == AppServiceResponseStatus.Success &&
+                            hostResponse.Message != null)
+                        {
+                            await args.Request.SendResponseAsync(hostResponse.Message);
+                        }
+                        else
+                        {
+                            await args.Request.SendResponseAsync(
+                                new Windows.Foundation.Collections.ValueSet
+                                {
+                                    ["Status"] = "Error",
+                                    ["Error"] = "The streaming host response failed (status = " +
+                                        hostResponse.Status + ")."
+                                });
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        await args.Request.SendResponseAsync(
+                            new Windows.Foundation.Collections.ValueSet
+                            {
+                                ["Status"] = "Error",
+                                ["Error"] = "The streaming host command failed: " + ex.Message
+                            });
+                    }
                     return;
                 }
 
@@ -183,19 +230,40 @@ namespace DirectStreamWidget
             _widgetConnection?.Dispose();
             _hostConnection = null;
             _widgetConnection = null;
+            _hostLaunchAttempted = false;
+            _hostRegistration.TrySetResult(false);
+            _hostRegistration = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
         }
 
         private void OnAppServiceClosed(AppServiceConnection sender, AppServiceClosedEventArgs args)
         {
-            if (sender == _hostConnection) _hostConnection = null;
+            if (sender == _hostConnection)
+            {
+                _hostConnection = null;
+                _hostLaunchAttempted = false;
+                _hostRegistration.TrySetResult(false);
+                _hostRegistration = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+            }
             if (sender == _widgetConnection) _widgetConnection = null;
         }
 
-        private async Task EnsureHostLaunchedAsync()
+        internal async Task<bool> EnsureHostLaunchedAsync()
         {
+            if (_hostConnection != null)
+            {
+                return true;
+            }
+
             if (_hostLaunchAttempted)
             {
-                return;
+                bool alreadyLaunched = await WaitForHostRegistrationAsync();
+                if (!alreadyLaunched)
+                {
+                    _hostLaunchAttempted = false;
+                }
+                return alreadyLaunched;
             }
             _hostLaunchAttempted = true;
 
@@ -204,14 +272,35 @@ namespace DirectStreamWidget
                 // Executable path matches the windows.fullTrustProcess
                 // extension in Package.appxmanifest.
                 await FullTrustProcessLauncher.LaunchFullTrustProcessForCurrentAppAsync();
+                bool registered = await WaitForHostRegistrationAsync();
+                if (!registered)
+                {
+                    _hostLaunchAttempted = false;
+                }
+                return registered;
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                // Host failed to launch (e.g. package built without the host).
-                // StreamingService will surface the real connection error to
-                // the UI when the user presses Start; do not fake success.
+                Debug.WriteLine("Streaming host launch failed: " + ex);
                 _hostLaunchAttempted = false;
+                return false;
             }
+        }
+
+        private async Task<bool> WaitForHostRegistrationAsync()
+        {
+            if (_hostConnection != null)
+            {
+                return true;
+            }
+
+            Task<bool> registrationTask = _hostRegistration.Task;
+            Task completed = await Task.WhenAny(
+                registrationTask,
+                Task.Delay(TimeSpan.FromSeconds(5)));
+            return completed == registrationTask &&
+                await registrationTask &&
+                _hostConnection != null;
         }
 
         private void OnNavigationFailed(object sender, NavigationFailedEventArgs e)

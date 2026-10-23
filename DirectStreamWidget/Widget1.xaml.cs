@@ -4,6 +4,7 @@ using Windows.UI;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Media;
+using Windows.ApplicationModel.DataTransfer;
 
 namespace DirectStreamWidget
 {
@@ -20,11 +21,13 @@ namespace DirectStreamWidget
     /// </summary>
     public sealed partial class Widget1 : Page
     {
+        private const int MaxVisibleLogLines = 300;
         private readonly StreamingService _streamer = new StreamingService();
         private readonly ApplicationDataContainer _settings = ApplicationData.Current.LocalSettings;
         private DispatcherTimer _statsTimer;
         private DateTimeOffset _liveSince;
         private bool _isLive;
+        private bool _stopPending;
 
         public Widget1()
         {
@@ -66,11 +69,21 @@ namespace DirectStreamWidget
 
         private async void OnStreamButtonClick(object sender, RoutedEventArgs e)
         {
-            if (_isLive)
+            if (_isLive || _stopPending)
             {
-                await _streamer.StopAsync();
-                SetStatus(false, "Idle");
-                StreamButton.Content = "START STREAMING";
+                bool stopped = await _streamer.StopAsync();
+                if (stopped)
+                {
+                    _stopPending = false;
+                    SetStatus(false, "Idle");
+                    StreamButton.Content = "START STREAMING";
+                }
+                else
+                {
+                    _stopPending = true;
+                    SetStatus(false, "Stop not confirmed");
+                    StreamButton.Content = "STOP STREAMING";
+                }
                 return;
             }
 
@@ -100,12 +113,14 @@ namespace DirectStreamWidget
 
             if (started)
             {
-                SetStatus(true, "Live");
+                _stopPending = false;
+                SetStatus(true, "Sending (not confirmed)");
                 StreamButton.Content = "STOP STREAMING";
             }
             else
             {
-                SetStatus(false, "Error - see log");
+                SetStatus(false, "Error - log below");
+                await ShowFailureLogAsync();
             }
         }
 
@@ -115,6 +130,7 @@ namespace DirectStreamWidget
             {
                 if (status == "Idle")
                 {
+                    _stopPending = false;
                     SetStatus(false, "Idle");
                     StreamButton.Content = "START STREAMING";
                 }
@@ -135,21 +151,83 @@ namespace DirectStreamWidget
         private void OnStatsTick(object sender, object e)
         {
             StatsText.Text = _isLive
-                ? "Uptime: " + (DateTimeOffset.Now - _liveSince).ToString(@"hh\:mm\:ss")
+                ? "Sending time: " + (DateTimeOffset.Now - _liveSince).ToString(@"hh\:mm\:ss")
                 : string.Empty;
         }
 
         private void OnSettingsClick(object sender, RoutedEventArgs e)
         {
-            // The settings app extension opens from Game Bar's widget menu.
-            AppendLog("Open this widget's Settings from the Game Bar widget menu.");
+            if (Frame != null)
+            {
+                Frame.Navigate(typeof(SettingsWidget));
+            }
+        }
+
+        private void OnCopyLogClick(object sender, RoutedEventArgs e)
+        {
+            var data = new DataPackage();
+            data.SetText(LogBox.Text ?? string.Empty);
+            Clipboard.SetContent(data);
+            AppendLog("Log copied to clipboard.");
+        }
+
+        private async System.Threading.Tasks.Task ShowFailureLogAsync()
+        {
+            await Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, async () =>
+            {
+                var dialog = new ContentDialog
+                {
+                    Title = "Stream start failed - diagnostics",
+                    Content = new ScrollViewer
+                    {
+                        MaxHeight = 360,
+                        Content = new TextBlock
+                        {
+                            Text = LogBox.Text ?? "No diagnostic messages were received.",
+                            TextWrapping = TextWrapping.Wrap,
+                            FontFamily = new FontFamily("Consolas"),
+                            FontSize = 12
+                        }
+                    },
+                    PrimaryButtonText = "Copy log",
+                    CloseButtonText = "Close"
+                };
+                ContentDialogResult result = await dialog.ShowAsync();
+                if (result == ContentDialogResult.Primary)
+                {
+                    var data = new DataPackage();
+                    data.SetText(LogBox.Text ?? string.Empty);
+                    Clipboard.SetContent(data);
+                }
+            });
         }
 
         private void AppendLog(string message)
         {
             _ = Dispatcher.RunAsync(Windows.UI.Core.CoreDispatcherPriority.Normal, () =>
             {
-                LogBox.Text += "[" + DateTime.Now.ToString("HH:mm:ss") + "] " + message + "\r\n";
+                string entry = "[" + DateTime.Now.ToString("HH:mm:ss") + "] " + message + "\r\n";
+                string current = LogBox.Text ?? string.Empty;
+                int excessLines = current.Split(new[] { "\r\n" }, StringSplitOptions.None).Length -
+                    MaxVisibleLogLines;
+                if (excessLines > 0)
+                {
+                    int removeThrough = 0;
+                    for (int i = 0; i < excessLines; i++)
+                    {
+                        int nextLine = current.IndexOf("\r\n", removeThrough, StringComparison.Ordinal);
+                        if (nextLine < 0)
+                        {
+                            removeThrough = current.Length;
+                            break;
+                        }
+                        removeThrough = nextLine + 2;
+                    }
+                    current = current.Substring(removeThrough);
+                }
+
+                LogBox.Text = current + entry;
+                LogBox.Select(LogBox.Text.Length, 0);
             });
         }
     }

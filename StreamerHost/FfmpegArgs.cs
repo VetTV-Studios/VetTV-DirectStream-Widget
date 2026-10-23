@@ -116,6 +116,7 @@ namespace StreamerHost
             var args = new List<string>
             {
                 "-hide_banner",
+                "-loglevel", "verbose",
                 // Video input: Windows desktop capture.
                 "-f", "gdigrab",
                 "-framerate", quality.Fps.ToString(),
