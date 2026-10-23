@@ -1,0 +1,1 @@
+PublicFolder for the microsoft.gameBarUIExtension registration in Package.appxmanifest. Game Bar reads public widget assets from this folder; it must exist in the package even when empty.
