@@ -2,15 +2,52 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8EF34AE0-C07D-49B4-A7F9-A0D2F6C8E7D0}") = "DirectStreamWidget", "DirectStreamWidget\DirectStreamWidget.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DirectStreamWidget", "DirectStreamWidget\DirectStreamWidget.csproj", "{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}"
 EndProject
-Project("{8EF34AE0-C07D-49B4-A7F9-A0D2F6C8E7D0}") = "StreamerHost", "StreamerHost\StreamerHost.csproj", "{B2C3D4E5-F6A7-8901-BCDE-F12345678901}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StreamerHost", "StreamerHost\StreamerHost.csproj", "{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|ARM64 = Debug|ARM64
 		Debug|x64 = Debug|x64
-		Release|x64 = Release|x64
 		Debug|x86 = Debug|x86
+		Release|ARM64 = Release|ARM64
+		Release|x64 = Release|x64
 		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Debug|ARM64.ActiveCfg = Debug|ARM64
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Debug|ARM64.Build.0 = Debug|ARM64
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Debug|ARM64.Deploy.0 = Debug|ARM64
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Debug|x64.ActiveCfg = Debug|x64
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Debug|x64.Build.0 = Debug|x64
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Debug|x64.Deploy.0 = Debug|x64
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Debug|x86.ActiveCfg = Debug|x86
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Debug|x86.Build.0 = Debug|x86
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Debug|x86.Deploy.0 = Debug|x86
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Release|ARM64.ActiveCfg = Release|ARM64
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Release|ARM64.Build.0 = Release|ARM64
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Release|ARM64.Deploy.0 = Release|ARM64
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Release|x64.ActiveCfg = Release|x64
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Release|x64.Build.0 = Release|x64
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Release|x64.Deploy.0 = Release|x64
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Release|x86.ActiveCfg = Release|x86
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Release|x86.Build.0 = Release|x86
+		{8F3A2B10-4C5D-4E6F-8A9B-0C1D2E3F4A5B}.Release|x86.Deploy.0 = Release|x86
+		{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}.Debug|ARM64.ActiveCfg = Debug|Any CPU
+		{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}.Debug|ARM64.Build.0 = Debug|Any CPU
+		{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}.Debug|x64.Build.0 = Debug|Any CPU
+		{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}.Debug|x86.Build.0 = Debug|Any CPU
+		{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}.Release|ARM64.ActiveCfg = Release|Any CPU
+		{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}.Release|ARM64.Build.0 = Release|Any CPU
+		{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}.Release|x64.ActiveCfg = Release|Any CPU
+		{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}.Release|x64.Build.0 = Release|Any CPU
+		{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}.Release|x86.ActiveCfg = Release|Any CPU
+		{9A4B3C21-5D6E-4F70-9B8C-1D2E3F4A5B6C}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal

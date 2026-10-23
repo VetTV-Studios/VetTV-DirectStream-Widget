@@ -1,25 +1,26 @@
-# VetTV DirectStream
+# VetTV Direct Stream Widget
 
-Stream your Windows desktop/game straight to Twitch, YouTube, Facebook, Kick, Rumble or the VetTV ingest.
-Hardware encoding (NVIDIA NVENC, AMD AMF, Intel QSV, CPU fallback), 720p/1080p/1440p at 30/60 fps,
-and a built-in game + mic mixer with level meters.
+Xbox Game Bar widget for direct RTMP streaming (Win+G). One-click Go Live from Game Bar - no OBS needed.
+
+**Platforms:** Twitch, YouTube, Facebook, Kick, Rumble, and VetTV ingest built in as presets, plus any custom RTMP URL.
+**Encoders:** NVIDIA NVENC, Intel QSV, AMD AMF, or x264 - with real auto-detection and fallback based on the ffmpeg build you have installed.
+**Quality:** 720p / 1080p / 1440p at 30 or 60 fps, 2-second keyframe interval as the platforms require.
+**Audio:** desktop/game audio and microphone mixed into one AAC track (via ffmpeg + DirectShow).
 
 ## Install
-1. Go to **Releases** and download `VetTV-DirectStream-Setup-x.y.z.exe`.
-2. Run it (no admin needed). Windows SmartScreen may warn because the app isn't code-signed yet: **More info → Run anyway**.
-3. Open VetTV DirectStream, pick your platform, paste your stream key, press **Go Live**.
+See [INSTALL.md](INSTALL.md). Short version: download the `.msix` from Releases, trust the VetTV Studios signing certificate once, install ffmpeg (`scripts\Get-Ffmpeg.ps1`), install the package, then Win+G and pin **Direct Stream**.
 
-A portable `.zip` is also attached to each release. FFmpeg is bundled.
+## How it works
+- The widget (UWP) is just the UI: platform/quality/encoder picks, stream key (kept in the Windows Credential Vault), status and log.
+- A full-trust companion process, **StreamerHost**, ships in the same package and does the actual work: it runs ffmpeg (gdigrab desktop capture + DirectShow audio) and pushes FLV/RTMP to your ingest.
+- The two talk over the `DirectStreamService` app service declared in the package manifest.
 
-## Notes
-- Stream keys are encrypted with Windows DPAPI for your account and never written to the log.
-- Auto bitrate: 720p 3.5/4.5 Mbps, 1080p 6/8 Mbps, 1440p 9/12 Mbps (30/60 fps). Twitch caps around 6-8 Mbps; lower it manually if rejected.
-- Kick/Rumble/VetTV: copy the ingest URL from your dashboard into Server URL.
-- Captures the primary desktop. For games, use borderless/windowed-fullscreen.
+## Roadmap (not in this release)
+- Live chat overlay widget
+- Per-source volume sliders (game/mic mixer v2; v1 mixes both at unity gain)
 
-## Build / release
-```
-dotnet publish src/VetTVDirectStream -c Release -r win-x64 --self-contained
-git tag v1.0.0 && git push origin v1.0.0   # GitHub Actions builds installer + zip and publishes the release
-```
-MIT licensed. FFmpeg (GPL build) is downloaded at release time from BtbN/FFmpeg-Builds.
+## Build from source
+Visual Studio 2022 + UWP workload + Windows SDK 10.0.22621. Add the assets in `DirectStreamWidget\Assets\ASSETS-REQUIRED.md`, build Release | x64, deploy, Win+G. Details in INSTALL.md.
+
+## License
+MIT - Copyright (c) 2026 VetTV Studios
