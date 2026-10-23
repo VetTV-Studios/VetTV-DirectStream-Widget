@@ -36,3 +36,5 @@ Settings > Apps > Direct Stream > Uninstall. Game Bar forgets the widget automat
 3. Create a signing cert whose subject matches the manifest Publisher (`CN=VetTV Studios`) - `scripts\New-SigningCert.ps1` - and pick it in the project's Packaging settings, or build unsigned for local deploy.
 4. Open `XboxGameBarDirectStreamWidget.sln`, build Release | x64 (StreamerHost builds first; the widget package carries its output).
 5. Deploy the package, then press Win+G. (Setting the widget as the VS startup project and pressing F5 only runs it as a loose app outside Game Bar - that was the scaffold's wrong instruction.)
+
+To publish through GitHub Actions, configure the repository secrets `SIGNING_CERT_PFX_BASE64` (the base64-encoded PFX) and `SIGNING_CERT_PASSWORD`. The release workflow stops if either secret is missing so it cannot publish an unsigned MSIX. Never commit the PFX or its password.
