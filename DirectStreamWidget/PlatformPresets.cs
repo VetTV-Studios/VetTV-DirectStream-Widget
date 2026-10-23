@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Windows.Storage;
 
 namespace DirectStreamWidget
 {
@@ -58,5 +59,29 @@ namespace DirectStreamWidget
         {
             VetTV, Twitch, YouTube, Facebook, Kick, Rumble, Custom
         };
+    }
+
+    public static class ChatOverlayState
+    {
+        private const string PlatformSetting = "ChatPlatform";
+        private static readonly ApplicationDataContainer Settings =
+            ApplicationData.Current.LocalSettings;
+
+        public static event System.Action<string> SelectedPlatformChanged;
+
+        public static string SelectedPlatform =>
+            Settings.Values[PlatformSetting] as string ?? PlatformPresets.VetTV.Name;
+
+        public static void SetSelectedPlatform(string platform)
+        {
+            if (string.IsNullOrWhiteSpace(platform) ||
+                string.Equals(SelectedPlatform, platform, System.StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            Settings.Values[PlatformSetting] = platform;
+            SelectedPlatformChanged?.Invoke(platform);
+        }
     }
 }

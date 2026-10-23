@@ -11,7 +11,7 @@
   <Identity
     Name="VetTVStudios.DirectStreamWidget"
     Publisher="CN=VetTV Studios"
-    Version="1.1.9.0" />
+    Version="1.2.0.0" />
   <mp:PhoneIdentity PhoneProductId="3d7e8a10-5b6c-4d2e-9f10-2a3b4c5d6e7f" PhonePublisherId="00000000-0000-0000-0000-000000000000" />
   <Properties>
     <DisplayName>Direct Stream</DisplayName>
@@ -58,6 +58,34 @@
                     <MinHeight>360</MinHeight>
                     <MinWidth>360</MinWidth>
                     <MaxHeight>900</MaxHeight>
+                    <MaxWidth>640</MaxWidth>
+                  </Size>
+                  <ResizeSupported>
+                    <Horizontal>true</Horizontal>
+                    <Vertical>true</Vertical>
+                  </ResizeSupported>
+                </Window>
+              </GameBarWidget>
+            </uap3:Properties>
+          </uap3:AppExtension>
+        </uap3:Extension>
+        <uap3:Extension Category="windows.appExtension">
+          <uap3:AppExtension Name="microsoft.gameBarUIExtension"
+            Id="com.vettv.directstream.chat"
+            DisplayName="Direct Stream Chat"
+            Description="Pinned live chat overlay for the selected streaming platform"
+            PublicFolder="GameBar">
+            <uap3:Properties>
+              <GameBarWidget Type="Standard">
+                <HomeMenuVisible>true</HomeMenuVisible>
+                <PinningSupported>true</PinningSupported>
+                <Window>
+                  <Size>
+                    <Height>600</Height>
+                    <Width>420</Width>
+                    <MinHeight>360</MinHeight>
+                    <MinWidth>300</MinWidth>
+                    <MaxHeight>1000</MaxHeight>
                     <MaxWidth>640</MaxWidth>
                   </Size>
                   <ResizeSupported>

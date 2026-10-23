@@ -133,13 +133,14 @@ jobs:
           body: |
             ## VetTV Direct Stream Widget ${{ github.ref_name }}
 
-            Xbox Game Bar widget for direct RTMP streaming (Win+G) - Twitch, YouTube, Facebook, Kick, Rumble, and VetTV ingest.
+            Xbox Game Bar widget for direct RTMP streaming and platform-specific pinned chat overlays (Win+G) - Twitch, YouTube, Facebook, Kick, Rumble, and VetTV ingest.
 
             ### Install (Windows 10 20H1+ / Windows 11, x64)
             1. Download the `.msix` below.
             2. The package is signed with the VetTV Studios self-signed certificate. Before installing, trust it once: right-click the `.msix` > Properties > Digital Signatures > View Certificate > Install Certificate > Local Machine > Trusted People. (Or run `scripts\Install-Cert.ps1` once the matching `.cer` is attached to a release.)
             3. Double-click the `.msix` and install.
             4. Press **Win+G**, open the widget menu, and pin **Direct Stream**.
-            5. You need ffmpeg: put `ffmpeg.exe` next to the app (see INSTALL.md in the repo) or install ffmpeg and add it to PATH. For NVENC, use a current NVIDIA driver.
+            5. Pin **Direct Stream Chat** as a separate Game Bar widget to keep platform chat visible while gaming.
+            6. You need ffmpeg: put `ffmpeg.exe` next to the app (see INSTALL.md in the repo) or install ffmpeg and add it to PATH. For NVENC, use a current NVIDIA driver.
 
             Full instructions: INSTALL.md in the repo.
