@@ -27,6 +27,7 @@ namespace DirectStreamWidget
     {
         private XboxGameBarWidget _mainWidget;
         private XboxGameBarWidget _settingsWidget;
+        private XboxGameBarWidget _chatWidget;
         // The app service is a relay between two clients: the widget UI
         // (Role=Widget, StreamingService) and the full-trust host
         // (Role=Host, StreamerHost). Commands flow widget -> host;
@@ -85,6 +86,14 @@ namespace DirectStreamWidget
                             rootFrame);
                         _mainWidget.SettingsClicked += OnMainWidgetSettingsClicked;
                         rootFrame.Navigate(typeof(Widget1));
+                    }
+                    else if (widgetArgs.AppExtensionId == "com.vettv.directstream.chat")
+                    {
+                        _chatWidget = new XboxGameBarWidget(
+                            widgetArgs,
+                            Window.Current.CoreWindow,
+                            rootFrame);
+                        rootFrame.Navigate(typeof(ChatOverlayWidget));
                     }
                     else if (widgetArgs.AppExtensionId == "DirectStreamSettings")
                     {

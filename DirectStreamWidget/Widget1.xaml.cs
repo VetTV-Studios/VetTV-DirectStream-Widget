@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using Windows.Storage;
 using Windows.UI;
 using Windows.UI.Xaml;
@@ -40,7 +41,10 @@ namespace DirectStreamWidget
         private void OnLoaded(object sender, RoutedEventArgs e)
         {
             PlatformBox.ItemsSource = PlatformPresets.All;
-            PlatformBox.SelectedIndex = 0;
+            string selectedPlatform = ChatOverlayState.SelectedPlatform;
+            PlatformPreset preset = PlatformPresets.All.FirstOrDefault(
+                item => item.Name.Equals(selectedPlatform, StringComparison.OrdinalIgnoreCase));
+            PlatformBox.SelectedItem = preset ?? PlatformPresets.VetTV;
 
             string defaultUrl = _settings.Values["DefaultRtmp"] as string;
             if (!string.IsNullOrWhiteSpace(defaultUrl))
@@ -64,6 +68,10 @@ namespace DirectStreamWidget
             if (PlatformBox.SelectedItem is PlatformPreset preset && !string.IsNullOrEmpty(preset.IngestUrl))
             {
                 RtmpUrlBox.Text = preset.IngestUrl;
+            }
+            if (PlatformBox.SelectedItem is PlatformPreset selectedPreset)
+            {
+                ChatOverlayState.SetSelectedPlatform(selectedPreset.Name);
             }
         }
 
