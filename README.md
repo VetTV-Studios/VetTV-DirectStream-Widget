@@ -20,7 +20,7 @@ See [INSTALL.md](INSTALL.md). Short version: download the `.msix` from Releases,
 - Per-source volume sliders (game/mic mixer v2; v1 mixes both at unity gain)
 
 ## Build from source
-Visual Studio 2022 + UWP workload + Windows SDK 10.0.22621. Add the assets in `DirectStreamWidget\Assets\ASSETS-REQUIRED.md`, build Release | x64, deploy, Win+G. Details in INSTALL.md.
+Visual Studio with the UWP workload, Windows SDK 10.0.26100, and the .NET 8 SDK. Add the assets in `DirectStreamWidget\Assets\ASSETS-REQUIRED.md`, then build Release | x64; the solution builds StreamerHost before packaging it with the widget. Deploy, then press Win+G. Details in INSTALL.md.
 
 ## License
 MIT - Copyright (c) 2026 VetTV Studios

@@ -32,7 +32,7 @@ Your stream key is stored in the Windows Credential Vault when "Save stream key"
 Settings > Apps > Direct Stream > Uninstall. Game Bar forgets the widget automatically.
 
 ## For developers (build it yourself)
-1. Visual Studio 2022 with the **Universal Windows Platform development** workload and Windows SDK 10.0.22621.
+1. Visual Studio with the **Universal Windows Platform development** workload, Windows SDK 10.0.26100, and the .NET 8 SDK.
 2. Add the six PNGs listed in `DirectStreamWidget\Assets\ASSETS-REQUIRED.md`.
 3. Create a signing cert whose subject matches the manifest Publisher (`CN=VetTV Studios`) - `scripts\New-SigningCert.ps1` - and pick it in the project's Packaging settings, or build unsigned for local deploy.
 4. Open `XboxGameBarDirectStreamWidget.sln`, build Release | x64 (StreamerHost builds first; the widget package carries its output).

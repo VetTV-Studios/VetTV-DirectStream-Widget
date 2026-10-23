@@ -5,7 +5,6 @@ using Windows.ApplicationModel;
 using Windows.ApplicationModel.Activation;
 using Windows.ApplicationModel.AppService;
 using Windows.ApplicationModel.Background;
-using Windows.ApplicationModel.FullTrust;
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Controls;
 using Windows.UI.Xaml.Navigation;
@@ -63,60 +62,40 @@ namespace DirectStreamWidget
 
         protected override async void OnActivated(IActivatedEventArgs args)
         {
-            if (args.Kind == ActivationKind.Protocol)
+            if (args.Kind == ActivationKind.Protocol &&
+                args is IProtocolActivatedEventArgs protocolArgs &&
+                protocolArgs.Uri.Scheme == "ms-gamebarwidget" &&
+                args is XboxGameBarWidgetActivatedEventArgs widgetArgs)
             {
-                var protocolArgs = args as ProtocolActivatedEventArgs;
-                string caller = protocolArgs?.CallerPackageFamilyName ?? string.Empty;
-
-                if (caller == XboxGameBarWidgetActivatedEventArgs.XboxGameBarPackageFamilyName ||
-                    caller == XboxGameBarWidgetActivatedEventArgs.GameBarPackageFamilyName)
+                if (widgetArgs.IsLaunchActivation)
                 {
-                    var widgetArgs = args as XboxGameBarWidgetActivatedEventArgs;
-                    if (widgetArgs != null)
+                    var rootFrame = new Frame();
+                    rootFrame.NavigationFailed += OnNavigationFailed;
+                    Window.Current.Content = rootFrame;
+
+                    if (widgetArgs.AppExtensionId == "com.vettv.directstream")
                     {
                         await EnsureHostLaunchedAsync();
-
-                        if (!(Window.Current.Content is Frame rootFrame))
-                        {
-                            rootFrame = new Frame();
-                            rootFrame.NavigationFailed += OnNavigationFailed;
-                            Window.Current.Content = rootFrame;
-                        }
-
-                        // Widget IDs must match the GameBarWidgetDefinition /
-                        // GameBarWidgetSettings IDs in Package.appxmanifest.
-                        if (widgetArgs.WidgetId == "DirectStreamMain")
-                        {
-                            if (_mainWidget == null)
-                            {
-                                _mainWidget = new XboxGameBarWidget(
-                                    widgetArgs,
-                                    Window.Current.CoreWindow,
-                                    rootFrame);
-                                rootFrame.Navigate(typeof(Widget1));
-                            }
-                            _mainWidget.Activate();
-                            XboxGameBarWidgetControl.Activate(_mainWidget);
-                        }
-                        else if (widgetArgs.WidgetId == "DirectStreamSettings")
-                        {
-                            if (_settingsWidget == null)
-                            {
-                                var settingsFrame = new Frame();
-                                _settingsWidget = new XboxGameBarWidget(
-                                    widgetArgs,
-                                    Window.Current.CoreWindow,
-                                    settingsFrame);
-                                settingsFrame.Navigate(typeof(SettingsWidget));
-                            }
-                            _settingsWidget.Activate();
-                            XboxGameBarWidgetControl.Activate(_settingsWidget);
-                        }
-
-                        Window.Current.Activate();
-                        return;
+                        _mainWidget = new XboxGameBarWidget(
+                            widgetArgs,
+                            Window.Current.CoreWindow,
+                            rootFrame);
+                        rootFrame.Navigate(typeof(Widget1));
                     }
+                    else if (widgetArgs.AppExtensionId == "DirectStreamSettings")
+                    {
+                        _settingsWidget = new XboxGameBarWidget(
+                            widgetArgs,
+                            Window.Current.CoreWindow,
+                            rootFrame);
+                        rootFrame.Navigate(typeof(SettingsWidget));
+                    }
+
+                    Window.Current.Activate();
+                    return;
                 }
+
+                return;
             }
 
             base.OnActivated(args);

@@ -1,5 +1,4 @@
 using System;
-using Microsoft.Gaming.XboxGameBar;
 using Windows.Storage;
 using Windows.UI;
 using Windows.UI.Xaml;
@@ -23,7 +22,6 @@ namespace DirectStreamWidget
     {
         private readonly StreamingService _streamer = new StreamingService();
         private readonly ApplicationDataContainer _settings = ApplicationData.Current.LocalSettings;
-        private XboxGameBarWidget _widget;
         private DispatcherTimer _statsTimer;
         private DateTimeOffset _liveSince;
         private bool _isLive;
@@ -143,10 +141,8 @@ namespace DirectStreamWidget
 
         private void OnSettingsClick(object sender, RoutedEventArgs e)
         {
-            // The widget control is created in App.OnActivated; settings open
-            // through Game Bar's own settings affordance for this widget.
+            // The settings app extension opens from Game Bar's widget menu.
             AppendLog("Open this widget's Settings from the Game Bar widget menu.");
-            _widget?.ActivateSettingsWidget();
         }
 
         private void AppendLog(string message)

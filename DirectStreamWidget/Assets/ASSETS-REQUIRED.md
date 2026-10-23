@@ -1,9 +1,9 @@
 # Required package assets
 
-The manifest and csproj reference these files. Packaging fails without them
-(the scaffold shipped none of them - diagnosis item 6). Generate them in the
-VH neon branding: background #0E0520, cyan #00D9FF, pink #FF2E9A. A simple
-"DS" monogram or the VetTV wordmark centered on #0E0520 is enough for v1.1.
+These branded images are included in this folder and are required by the
+manifest and project packaging configuration. Keep these filenames and sizes
+when replacing the artwork. `SplashScreen.png` is based on the existing
+620x300 wide-tile art.
 
 | File | Size | Used for |
 |---|---|---|
@@ -14,6 +14,4 @@ VH neon branding: background #0E0520, cyan #00D9FF, pink #FF2E9A. A simple
 | SplashScreen.png | 620x300 | Splash screen |
 | widget_icon.png | 48x48 | Game Bar widget icon reference |
 
-Keep the filenames exactly as above and place the PNGs in this folder,
-replacing this note's folder contents (this .md may stay; it is not packaged
-because the csproj only includes the listed PNGs).
+The project packages only the listed PNGs; this reference file is not packaged.
