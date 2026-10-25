@@ -87,9 +87,25 @@ jobs:
             throw "Expected exactly one .msixupload; found $($uploads.Count)."
           }
           Write-Host "Upload package: $($uploads[0].FullName) ($([math]::Round($uploads[0].Length / 1MB, 1)) MB)"
-          if ($uploads[0].Length -lt 80MB) {
-            throw "Package is suspiciously small - bundled ffmpeg.exe (87 MB) is probably missing."
-          }
+          # MSIX compresses ffmpeg.exe, so total size alone proves nothing:
+          # unpack upload -> bundle -> package and require the real binary.
+          $stage = Join-Path $env:RUNNER_TEMP "verify-pkg"
+          New-Item -ItemType Directory -Force $stage | Out-Null
+          Copy-Item $uploads[0].FullName (Join-Path $stage "upload.zip")
+          Expand-Archive (Join-Path $stage "upload.zip") (Join-Path $stage "upload") -Force
+          $bundle = Get-ChildItem (Join-Path $stage "upload") -Filter *.msixbundle -Recurse | Select-Object -First 1
+          if (-not $bundle) { throw "No .msixbundle inside the .msixupload." }
+          Copy-Item $bundle.FullName (Join-Path $stage "bundle.zip")
+          Expand-Archive (Join-Path $stage "bundle.zip") (Join-Path $stage "bundle") -Force
+          $pkg = Get-ChildItem (Join-Path $stage "bundle") -Filter *.msix -Recurse | Select-Object -First 1
+          if (-not $pkg) { throw "No .msix inside the bundle." }
+          Copy-Item $pkg.FullName (Join-Path $stage "pkg.zip")
+          Expand-Archive (Join-Path $stage "pkg.zip") (Join-Path $stage "pkg") -Force
+          $ffmpeg = Join-Path $stage "pkg\StreamerHost\ffmpeg.exe"
+          if (-not (Test-Path $ffmpeg)) { throw "Bundled StreamerHost\ffmpeg.exe is missing from the package." }
+          $ffmpegSize = (Get-Item $ffmpeg).Length
+          Write-Host "Bundled ffmpeg.exe in package: $([math]::Round($ffmpegSize / 1MB, 1)) MB"
+          if ($ffmpegSize -lt 80MB) { throw "Bundled ffmpeg.exe is truncated or wrong." }
           $leaks = @(Get-ChildItem -Path "$env:GITHUB_WORKSPACE\artifacts" -Include *.pfx,*.cer -Recurse)
           if ($leaks.Count -ne 0) {
             throw "Signing material must never ship in the Store artifact."
