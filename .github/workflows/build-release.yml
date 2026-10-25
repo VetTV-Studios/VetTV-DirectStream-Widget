@@ -1,4 +1,11 @@
-name: Build and Release
+name: Build and Release (legacy sideload - do not use for Store)
+
+# LEGACY: this workflow builds a self-signed sideload .msix. Since the
+# manifest now carries the Partner Center Store identity
+# (65128fromeister2009.VetTVDirectStream / CN=FDC0BAA2-...), a self-signed
+# cert can no longer match the Publisher, so this workflow is retained
+# for reference only. For Microsoft Store, use store-package.yml, which
+# builds the unsigned .msixupload that Partner Center signs itself.
 
 # Replaces the stock dotnet-desktop template, which referenced
 # your-solution-name / your-wap-project-path placeholders, ran a test step

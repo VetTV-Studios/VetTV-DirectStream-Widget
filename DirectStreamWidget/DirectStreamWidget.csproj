@@ -12,7 +12,7 @@
     <DefaultLanguage>en-US</DefaultLanguage>
     <TargetPlatformIdentifier>UAP</TargetPlatformIdentifier>
     <TargetPlatformVersion Condition=" '$(TargetPlatformVersion)' == '' ">10.0.26100.0</TargetPlatformVersion>
-    <TargetPlatformMinVersion Condition=" '$(TargetPlatformMinVersion)' == '' ">10.0.18362.0</TargetPlatformMinVersion>
+    <TargetPlatformMinVersion Condition=" '$(TargetPlatformMinVersion)' == '' ">10.0.19041.0</TargetPlatformMinVersion>
     <MinimumVisualStudioVersion>14</MinimumVisualStudioVersion>
     <FileAlignment>512</FileAlignment>
     <ProjectTypeGuids>{A5A43C5B-DE2A-4C0C-9213-0A381AF9435A};{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}</ProjectTypeGuids>
@@ -158,6 +158,14 @@
          windows.fullTrustProcess extension in Package.appxmanifest). -->
     <Content Include="..\StreamerHost\bin\$(Configuration)\net8.0-windows10.0.22621.0\win-x64\publish\StreamerHost.exe">
       <Link>StreamerHost\StreamerHost.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\StreamerHost\ffmpeg\ffmpeg.exe">
+      <Link>StreamerHost\ffmpeg.exe</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="..\StreamerHost\ffmpeg\LICENSE-ffmpeg.txt">
+      <Link>StreamerHost\LICENSE-ffmpeg.txt</Link>
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

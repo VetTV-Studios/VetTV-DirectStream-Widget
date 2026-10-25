@@ -1,0 +1,102 @@
+name: Store Package (.msixupload)
+
+# Builds the Microsoft Store upload package for VetTV Direct Stream.
+#
+# How Store packaging differs from the legacy sideload workflow
+# (build-release.yml):
+#   - No signing certificate, no secrets. Partner Center re-signs the
+#     package during ingestion; the upload must be unsigned and its
+#     Identity must exactly match the Partner Center reservation:
+#       Name      65128fromeister2009.VetTVDirectStream
+#       Publisher CN=FDC0BAA2-3C8B-4D81-BC95-81C9D1954673
+#   - UapAppxPackageBuildMode=StoreUpload produces a single
+#     .msixupload (an .msixbundle inside) for upload in Partner Center.
+#   - ffmpeg 7.1.1 is bundled (pinned + SHA256-verified) so the app
+#     works on a clean certification machine with nothing pre-installed.
+#
+# Run manually (workflow_dispatch) or push a version tag (v*). Download
+# the DirectStreamWidget-StoreUpload artifact and upload the
+# .msixupload in Partner Center > Packages. See docs/store/.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  store-package:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup .NET (for StreamerHost)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Verify Store identity in manifest
+        shell: powershell
+        run: |
+          [xml]$m = Get-Content DirectStreamWidget\Package.appxmanifest
+          $id = $m.Package.Identity
+          if ($id.Name -ne '65128fromeister2009.VetTVDirectStream') {
+            throw "Manifest Identity Name '$($id.Name)' does not match Partner Center."
+          }
+          if ($id.Publisher -ne 'CN=FDC0BAA2-3C8B-4D81-BC95-81C9D1954673') {
+            throw "Manifest Publisher '$($id.Publisher)' does not match Partner Center."
+          }
+          if ($m.Package.Properties.PublisherDisplayName -ne 'Vet GamingTV') {
+            throw "PublisherDisplayName does not match Partner Center."
+          }
+          Write-Host "Store identity OK: $($id.Name) / $($id.Publisher) / v$($id.Version)"
+
+      - name: Bundle pinned ffmpeg (SHA256-verified)
+        shell: powershell
+        run: .\scripts\Get-BundledFfmpeg.ps1
+
+      - name: Restore
+        run: msbuild XboxGameBarDirectStreamWidget.sln /t:Restore /p:Configuration=Release /p:Platform=x64
+
+      - name: Publish self-contained StreamerHost (x64)
+        run: dotnet publish StreamerHost\StreamerHost.csproj -c Release -r win-x64 --self-contained true
+
+      - name: Build unsigned Store upload package
+        shell: powershell
+        run: |
+          msbuild DirectStreamWidget\DirectStreamWidget.csproj `
+            /p:Configuration=Release /p:Platform=x64 `
+            /p:AppxPackageDir="$env:GITHUB_WORKSPACE\artifacts\" `
+            /p:GenerateAppxPackageOnBuild=true `
+            /p:UapAppxPackageBuildMode=StoreUpload `
+            /p:AppxBundle=Always `
+            /p:AppxBundlePlatforms=x64 `
+            /p:AppxPackageSigningEnabled=false
+
+      - name: Verify upload package
+        shell: powershell
+        run: |
+          $uploads = @(Get-ChildItem -Path "$env:GITHUB_WORKSPACE\artifacts" -Filter *.msixupload -Recurse)
+          if ($uploads.Count -ne 1) {
+            throw "Expected exactly one .msixupload; found $($uploads.Count)."
+          }
+          Write-Host "Upload package: $($uploads[0].FullName) ($([math]::Round($uploads[0].Length / 1MB, 1)) MB)"
+          if ($uploads[0].Length -lt 80MB) {
+            throw "Package is suspiciously small - bundled ffmpeg.exe (87 MB) is probably missing."
+          }
+          $leaks = @(Get-ChildItem -Path "$env:GITHUB_WORKSPACE\artifacts" -Include *.pfx,*.cer -Recurse)
+          if ($leaks.Count -ne 0) {
+            throw "Signing material must never ship in the Store artifact."
+          }
+
+      - name: Upload Store package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: DirectStreamWidget-StoreUpload
+          path: artifacts/**/*

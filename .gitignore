@@ -8,5 +8,14 @@ AppPackages/
 ffmpeg.exe
 *.log
 local.settings.json
-VetTVStudios-Signing.pfx
 *.pfx
+*.cer
+*.msix
+*.msixbundle
+*.msixupload
+*.appx
+*.appxbundle
+*.appxupload
+artifacts/
+StreamerHost/ffmpeg/ffmpeg.exe
+StreamerHost/ffmpeg/LICENSE-ffmpeg.txt

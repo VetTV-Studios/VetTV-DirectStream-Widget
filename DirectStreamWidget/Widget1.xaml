@@ -56,9 +56,10 @@
                 <ComboBoxItem Content="1440p30 - 7000k" />
             </ComboBox>
             <ComboBox x:Name="EncoderBox" Header="Encoder" HorizontalAlignment="Stretch" SelectedIndex="0">
-                <ComboBoxItem Content="Auto (NVENC/QSV/x264)" />
+                <ComboBoxItem Content="Auto (NVENC/QSV/AMF/x264)" />
                 <ComboBoxItem Content="NVIDIA NVENC" />
                 <ComboBoxItem Content="Intel QSV" />
+<ComboBoxItem Content="AMD AMF" />
                 <ComboBoxItem Content="x264 (CPU)" />
             </ComboBox>
         </StackPanel>
