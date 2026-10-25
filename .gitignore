@@ -9,3 +9,4 @@ ffmpeg.exe
 *.log
 local.settings.json
 VetTVStudios-Signing.pfx
+*.pfx
