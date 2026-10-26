@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Thanks — VetTV Studios</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="stage">
+      <p class="brand">VetTV Studios</p>
+      <h1>Payment received</h1>
+      <p class="lede" id="message">Confirming your order…</p>
+      <p class="hint">
+        Access is granted by our webhook handler — this page is confirmation only.
+      </p>
+      <p><a class="text-link" href="/">Back to store</a></p>
+    </main>
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const sessionId = params.get('session_id');
+      const message = document.getElementById('message');
+      if (!sessionId) {
+        message.textContent = 'Missing session id.';
+      } else {
+        fetch('/session-status?session_id=' + encodeURIComponent(sessionId))
+          .then((r) => r.json())
+          .then((data) => {
+            if (data.payment_status === 'paid' || data.status === 'complete') {
+              message.textContent = data.customer_email
+                ? `You’re all set. Receipt headed to ${data.customer_email}.`
+                : 'You’re all set. Check your email for the receipt.';
+            } else if (data.payment_status === 'unpaid') {
+              message.textContent =
+                'Payment is still processing. You’ll get access when it clears.';
+            } else {
+              message.textContent = `Status: ${data.payment_status || data.status}`;
+            }
+          })
+          .catch(() => {
+            message.textContent =
+              'Thanks — if payment succeeded, fulfillment will complete via webhook.';
+          });
+      }
+    </script>
+  </body>
+</html>
