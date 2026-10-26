@@ -10,7 +10,22 @@ This folder is intentionally separate from the Xbox Game Bar Direct Stream Widge
 2. Redirect buyers to Stripe-hosted Checkout
 3. Fulfill orders from webhooks (`checkout.session.completed` + `checkout.session.async_payment_succeeded`)
 
+## Stripe account
+
+Active account for this integration:
+
+| Field | Value |
+| --- | --- |
+| Account | VetTV Studios |
+| Account ID | `acct_1UUgFkPHxwwBFUkD` |
+| Mode | **Test** (`livemode: false`) |
+| Product | `prod_VVhspd1fBbg30f` |
+| Price | `price_1UUgSuPHxwwBFUkDZeT1IxjZ` ($19.99 USD placeholder) |
+
+Get test keys from the [Stripe Dashboard → API keys (test mode)](https://dashboard.stripe.com/test/apikeys) while the VetTV Studios account is selected. Prefer a [restricted key](https://docs.stripe.com/keys#manage-your-api-keys).
+
 ## Setup
+
 
 ```bash
 cd studio-checkout
