@@ -1,0 +1,93 @@
+:root {
+  --bg-0: #0b1a14;
+  --bg-1: #143326;
+  --ink: #e8f2ea;
+  --muted: #9bb5a4;
+  --accent: #c4f542;
+  --accent-ink: #0b1a14;
+  --line: rgba(196, 245, 66, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: 'IBM Plex Sans', sans-serif;
+  color: var(--ink);
+  background:
+    radial-gradient(1200px 600px at 10% -10%, #1f5a3c 0%, transparent 55%),
+    radial-gradient(900px 500px at 100% 0%, #3a2a12 0%, transparent 45%),
+    linear-gradient(160deg, var(--bg-0), var(--bg-1));
+}
+
+.stage {
+  max-width: 36rem;
+  margin: 0 auto;
+  padding: 18vh 1.5rem 4rem;
+}
+
+.brand {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  margin: 0 0 1.25rem;
+  line-height: 1.6;
+}
+
+h1 {
+  font-family: 'Press Start 2P', monospace;
+  font-size: clamp(1rem, 2.4vw, 1.25rem);
+  line-height: 1.55;
+  margin: 0 0 1rem;
+}
+
+.lede {
+  margin: 0 0 1.75rem;
+  color: var(--muted);
+  font-size: 1.05rem;
+  line-height: 1.55;
+}
+
+button {
+  appearance: none;
+  border: 2px solid var(--accent);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font: inherit;
+  font-weight: 600;
+  padding: 0.85rem 1.25rem;
+  cursor: pointer;
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+  box-shadow: 0 0 0 0 transparent;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 30px rgba(196, 245, 66, 0.18);
+}
+
+button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.hint {
+  margin-top: 1.25rem;
+  color: var(--muted);
+  font-size: 0.92rem;
+  border-top: 1px solid var(--line);
+  padding-top: 1rem;
+}
+
+.text-link {
+  color: var(--accent);
+  font-weight: 600;
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>VetTV Studios — Checkout</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;600&family=Press+Start+2P&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="stage">
+      <p class="brand">VetTV Studios</p>
+      <h1>Buy a digital title</h1>
+      <p class="lede">
+        One-time payment via Stripe-hosted Checkout. You’ll leave this page for
+        Stripe’s secure payment form, then return here after purchase.
+      </p>
+      <form action="/create-checkout-session" method="POST">
+        <button type="submit" id="checkout-button">Pay with Stripe</button>
+      </form>
+      <p class="hint" id="status">Loading store config…</p>
+    </main>
+    <script>
+      fetch('/config')
+        .then((r) => r.json())
+        .then((cfg) => {
+          const el = document.getElementById('status');
+          if (!cfg.hasPrice) {
+            el.textContent =
+              'No STRIPE_PRICE_ID yet — run npm run create-product in studio-checkout.';
+            document.getElementById('checkout-button').disabled = true;
+          } else {
+            el.textContent = 'Test mode ready. Use Stripe test cards (e.g. 4242…).';
+          }
+        })
+        .catch(() => {
+          document.getElementById('status').textContent =
+            'Could not load config. Is the server running?';
+        });
+    </script>
+  </body>
+</html>
