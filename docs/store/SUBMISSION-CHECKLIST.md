@@ -15,7 +15,8 @@ Everything Partner Center asks for, in one place. Package identity
    (or push a `v*` tag). It verifies the manifest identity, bundles the
    pinned SHA256-verified ffmpeg, and builds the unsigned upload bundle.
 2. Download the `DirectStreamWidget-StoreUpload` artifact. It must
-   contain exactly one `.msixupload` (>80 MB; ffmpeg is inside).
+   contain exactly one `.msixupload` (76 MB for v1.2.0; the workflow
+   unpacks it and verifies the bundled ffmpeg.exe inside is intact).
 3. Optional but recommended before uploading: install the package from
    a local Store-mode build in Visual Studio (**Publish > Create App
    Packages > Microsoft Store**) and run the **Windows App
@@ -48,8 +49,10 @@ Everything Partner Center asks for, in one place. Package identity
 
 ## 3. Before you press Submit
 
-- [ ] Support email filled in (PRIVACY.md + listing + Partner Center)
-- [ ] Privacy policy URL live and pasted into Partner Center
+- [x] Support email filled in (PRIVACY.md + listing; enter the same
+  address in Partner Center when submitting)
+- [x] Privacy policy URL live: https://vettv-studios.github.io/VetTV-DirectStream-Widget/PRIVACY.html
+  (GitHub Pages, enabled 2026-10-30; paste this URL into Partner Center)
 - [ ] At least 1 screenshot (1366x768 or larger, actual app UI)
 - [ ] WACK run passed on the exact `.msixupload` being submitted
 - [ ] Manual clean-machine test: fresh Windows user, install, Win+G,

@@ -58,6 +58,10 @@ namespace DirectStreamWidget
                 StreamKeyBox.Password = StreamingService.LoadStreamKey();
             }
 
+            GameVolumeSlider.Value = SavedVolumePercent("GameVolume");
+            MicVolumeSlider.Value = SavedVolumePercent("MicVolume");
+            UpdateVolumeLabels();
+
             _statsTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _statsTimer.Tick += OnStatsTick;
             _statsTimer.Start();
@@ -117,7 +121,9 @@ namespace DirectStreamWidget
                 url, key, quality, encoder,
                 DesktopAudioCheck.IsChecked == true,
                 MicAudioCheck.IsChecked == true,
-                MuteMicCheck.IsChecked == true);
+                MuteMicCheck.IsChecked == true,
+                GameVolumeSlider.Value / 100.0,
+                MicVolumeSlider.Value / 100.0);
 
             if (started)
             {
@@ -161,6 +167,39 @@ namespace DirectStreamWidget
             StatsText.Text = _isLive
                 ? "Sending time: " + (DateTimeOffset.Now - _liveSince).ToString(@"hh\:mm\:ss")
                 : string.Empty;
+        }
+
+        private double SavedVolumePercent(string key)
+        {
+            // Mixer v2 volumes persist as percent (0-100); default is unity.
+            if (_settings.Values[key] is int percent)
+            {
+                return Math.Max(0, Math.Min(100, percent));
+            }
+            return 100.0;
+        }
+
+        private void OnVolumeChanged(object sender, Windows.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
+        {
+            if (GameVolumeSlider == null || MicVolumeSlider == null)
+            {
+                return;
+            }
+            _settings.Values["GameVolume"] = (int)Math.Round(GameVolumeSlider.Value);
+            _settings.Values["MicVolume"] = (int)Math.Round(MicVolumeSlider.Value);
+            UpdateVolumeLabels();
+        }
+
+        private void UpdateVolumeLabels()
+        {
+            if (GameVolumeText != null)
+            {
+                GameVolumeText.Text = ((int)Math.Round(GameVolumeSlider.Value)) + "%";
+            }
+            if (MicVolumeText != null)
+            {
+                MicVolumeText.Text = ((int)Math.Round(MicVolumeSlider.Value)) + "%";
+            }
         }
 
         private void OnSettingsClick(object sender, RoutedEventArgs e)

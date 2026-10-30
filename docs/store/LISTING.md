@@ -27,7 +27,8 @@ NVENC, Intel Quick Sync and AMD AMF, and falls back to software x264 —
 interval platforms require.
 
 **Game + microphone audio.** Desktop/game audio and your microphone
-are mixed into a single AAC track. Your stream key is kept in the
+are mixed into a single AAC track, with per-source volume sliders so
+you can balance game sound against your voice. Your stream key is kept in the
 Windows Credential Manager, never in plaintext, and diagnostic logs
 redact keys automatically.
 
@@ -48,7 +49,7 @@ A virtual-audio-capturer device is needed for desktop audio capture.
 - Twitch, YouTube, Facebook, Kick, Rumble and VetTV presets + custom RTMP
 - NVENC, Quick Sync and AMF hardware encoding with x264 fallback
 - 720p / 1080p / 1440p at 30 or 60 fps
-- Game audio + microphone mixing
+- Game audio + microphone mixing with per-source volume sliders
 - Separate pinnable live-chat widget per platform
 - Stream key stored in Windows Credential Manager
 

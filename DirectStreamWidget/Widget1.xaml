@@ -69,6 +69,27 @@
             <CheckBox x:Name="DesktopAudioCheck" Content="Desktop / game audio" IsChecked="True" Foreground="White" />
             <CheckBox x:Name="MicAudioCheck" Content="Microphone" IsChecked="True" Foreground="White" />
             <CheckBox x:Name="MuteMicCheck" Content="Mute mic" IsChecked="False" Foreground="White" />
+            <Grid Margin="24,2,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="44" />
+                </Grid.ColumnDefinitions>
+                <Slider x:Name="GameVolumeSlider" Header="Game volume" Minimum="0" Maximum="100" Value="100"
+                        ValueChanged="OnVolumeChanged" AutomationProperties.Name="Game volume" />
+                <TextBlock x:Name="GameVolumeText" Grid.Column="1" Text="100%" Foreground="White"
+                           VerticalAlignment="Bottom" Margin="8,0,0,6" />
+            </Grid>
+            <Grid Margin="24,2,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="44" />
+                </Grid.ColumnDefinitions>
+                <Slider x:Name="MicVolumeSlider" Header="Mic volume" Minimum="0" Maximum="100" Value="100"
+                        ValueChanged="OnVolumeChanged" AutomationProperties.Name="Mic volume" />
+                <TextBlock x:Name="MicVolumeText" Grid.Column="1" Text="100%" Foreground="White"
+                           VerticalAlignment="Bottom" Margin="8,0,0,6" />
+            </Grid>
+            <TextBlock Text="Volumes apply when the stream starts." Foreground="Gray" FontSize="11" Margin="24,0,0,0" />
         </StackPanel>
 
         <Button x:Name="StreamButton" Grid.Row="4" Content="START STREAMING"

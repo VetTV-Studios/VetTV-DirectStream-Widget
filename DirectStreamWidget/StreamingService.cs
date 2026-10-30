@@ -98,7 +98,8 @@ namespace DirectStreamWidget
 
         public async Task<bool> StartAsync(
             string rtmpUrl, string streamKey, string quality, string encoder,
-            bool desktopAudio, bool micAudio, bool muteMic)
+            bool desktopAudio, bool micAudio, bool muteMic,
+            double gameVolume = 1.0, double micVolume = 1.0)
         {
             if (!await ConnectAsync())
             {
@@ -113,7 +114,9 @@ namespace DirectStreamWidget
                 ["Quality"] = quality ?? string.Empty,
                 ["Encoder"] = encoder ?? string.Empty,
                 ["DesktopAudio"] = desktopAudio,
-                ["MicAudio"] = micAudio && !muteMic
+                ["MicAudio"] = micAudio && !muteMic,
+                ["GameVolume"] = ClampVolume(gameVolume),
+                ["MicVolume"] = ClampVolume(micVolume)
             };
 
             AppServiceResponse response;
@@ -148,6 +151,12 @@ namespace DirectStreamWidget
             LogReceived?.Invoke("Host refused to start: " + error);
             StatusChanged?.Invoke("Error");
             return false;
+        }
+
+        private static double ClampVolume(double volume)
+        {
+            if (double.IsNaN(volume) || volume < 0.0) return 0.0;
+            return volume > 1.0 ? 1.0 : volume;
         }
 
         public async Task<bool> StopAsync()

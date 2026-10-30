@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 
@@ -113,6 +114,21 @@ namespace StreamerHost
         public static List<string> Build(
             QualityPreset quality, string encoder, IReadOnlyList<string> audioDevices, string target)
         {
+            return Build(quality, encoder, audioDevices, null, target);
+        }
+
+        /// <summary>
+        /// Mixer v2 overload. audioVolumes is parallel to audioDevices
+        /// (linear gain per source, 1.0 = unity, 0.0 = silent); null or a
+        /// missing entry means unity. Each source gets its own volume
+        /// filter before amix, and amix runs with normalize=0 so the
+        /// per-source gains are the actual mix levels instead of being
+        /// re-scaled by amix default normalization.
+        /// </summary>
+        public static List<string> Build(
+            QualityPreset quality, string encoder, IReadOnlyList<string> audioDevices,
+            IReadOnlyList<double> audioVolumes, string target)
+        {
             var args = new List<string>
             {
                 "-hide_banner",
@@ -157,7 +173,9 @@ namespace StreamerHost
             if (audioCount == 1)
             {
                 args.Add("-map"); args.Add("0:v:0");
-                args.Add("-map"); args.Add("1:a:0");
+                args.Add("-filter_complex");
+                args.Add($"[1:a:0]volume={FormatVolume(VolumeFor(audioVolumes, 0))}[aout]");
+                args.Add("-map"); args.Add("[aout]");
                 args.Add("-c:a"); args.Add("aac");
                 args.Add("-b:a"); args.Add("160k");
                 args.Add("-ar"); args.Add("44100");
@@ -165,9 +183,10 @@ namespace StreamerHost
             else if (audioCount >= 2)
             {
                 // Mix every audio input (game + mic) into one AAC track.
-                var inputs = string.Concat(Enumerable.Range(1, audioCount).Select(i => $"[{i}:a:0]"));
+                var graph = string.Concat(Enumerable.Range(1, audioCount).Select(i => $"[{i}:a:0]volume={FormatVolume(VolumeFor(audioVolumes, i - 1))}[a{i}];"));
+                var mixed = string.Concat(Enumerable.Range(1, audioCount).Select(i => $"[a{i}]"));
                 args.Add("-filter_complex");
-                args.Add($"{inputs}amix=inputs={audioCount}:duration=longest[aout]");
+                args.Add($"{graph}{mixed}amix=inputs={audioCount}:duration=longest:normalize=0[aout]");
                 args.Add("-map"); args.Add("0:v:0");
                 args.Add("-map"); args.Add("[aout]");
                 args.Add("-c:a"); args.Add("aac");
@@ -183,6 +202,22 @@ namespace StreamerHost
             args.Add("flv");
             args.Add(target);
             return args;
+        }
+
+        private static double VolumeFor(IReadOnlyList<double> volumes, int index)
+        {
+            if (volumes == null || index < 0 || index >= volumes.Count)
+            {
+                return 1.0;
+            }
+            double value = volumes[index];
+            if (double.IsNaN(value) || value < 0.0) return 0.0;
+            return value > 2.0 ? 2.0 : value;
+        }
+
+        private static string FormatVolume(double volume)
+        {
+            return volume.ToString("0.###", CultureInfo.InvariantCulture);
         }
 
         private static string DoubleBitrate(string bitrate)

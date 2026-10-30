@@ -240,18 +240,35 @@ async Task<ValueSet> HandleStartCore(ValueSet message)
         message.TryGetValue(key, out object v) ? v as string ?? string.Empty : string.Empty;
     bool GetBool(string key) =>
         message.TryGetValue(key, out object v) && v is bool b && b;
+    double GetVolume(string key)
+    {
+        // Mixer v2 gains arrive as doubles (0.0-1.0 from the widget sliders).
+        // Absent (older widget) means unity; clamp defensively to 0.0-2.0.
+        if (!message.TryGetValue(key, out object v)) return 1.0;
+        double value;
+        if (v is double d) value = d;
+        else if (v is float f) value = f;
+        else if (v is int i) value = i;
+        else return 1.0;
+        if (double.IsNaN(value) || value < 0.0) return 0.0;
+        return value > 2.0 ? 2.0 : value;
+    }
 
     var quality = QualityPresets.Resolve(GetString("Quality"));
     var encoders = ListEncoders(ffmpeg);
     string encoder = FfmpegArgs.ResolveEncoder(GetString("Encoder"), encoders);
 
     var audioDevices = new List<string>();
+    var audioVolumes = new List<double>();
+    double gameVolume = GetVolume("GameVolume");
+    double micVolume = GetVolume("MicVolume");
     var availableAudio = await ListAudioDevicesAsync(ffmpeg);
     if (GetBool("DesktopAudio") && availableAudio.Contains(
             FfmpegArgs.DesktopAudioDevice,
             StringComparer.OrdinalIgnoreCase))
     {
         audioDevices.Add(FfmpegArgs.DesktopAudioDevice);
+        audioVolumes.Add(gameVolume);
     }
     else if (GetBool("DesktopAudio"))
     {
@@ -266,6 +283,7 @@ async Task<ValueSet> HandleStartCore(ValueSet message)
         if (mic != null)
         {
             audioDevices.Add(mic);
+            audioVolumes.Add(micVolume);
             await LogAsync("Using microphone input: " + mic);
         }
         else
@@ -278,7 +296,7 @@ async Task<ValueSet> HandleStartCore(ValueSet message)
     string key = GetString("StreamKey").Trim();
     string target = BuildTargetUrl(url, key);
 
-    var args = FfmpegArgs.Build(quality, encoder, audioDevices, target);
+    var args = FfmpegArgs.Build(quality, encoder, audioDevices, audioVolumes, target);
     await LogAsync("Starting ffmpeg (" + encoder + ", " + quality.Label + "); waiting for RTMP output to open.");
 
     try
